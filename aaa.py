@@ -32,6 +32,84 @@ class Square(pygame.sprite.Sprite):
 		pass
 
 
+class JoystickManager:
+	PS2_NAME = 'Twin USB Joystick'
+
+	PS2_LEFT_JOYSTICK, PS2_RIGHT_JOYSTICK = 0, 1
+	UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW = 0, 1, 2, 3
+
+	(CROSS, SQUARE, TRIANGLE, CIRCLE, 
+	START, SELECT,
+	R1, R2, R3, L1, L2, L3) = range(12)
+
+	PS2_HATS_MAP = 	   {0: PS2_RIGHT_JOYSTICK,
+						1: PS2_LEFT_JOYSTICK
+	}	
+
+	PS2_BUTTONS_MAP =  {0:  (PS2_RIGHT_JOYSTICK, TRIANGLE),
+						1:  (PS2_RIGHT_JOYSTICK, CIRCLE),
+						2:  (PS2_RIGHT_JOYSTICK, CROSS),
+						3:  (PS2_RIGHT_JOYSTICK, SQUARE),
+						4:  (PS2_RIGHT_JOYSTICK, L2),
+						5:  (PS2_RIGHT_JOYSTICK, R2),
+						6:  (PS2_RIGHT_JOYSTICK, L1),
+						7:  (PS2_RIGHT_JOYSTICK, R1),
+						8:  (PS2_RIGHT_JOYSTICK, SELECT),
+						9:  (PS2_RIGHT_JOYSTICK, START),
+						10: (PS2_RIGHT_JOYSTICK, L3),
+						11: (PS2_RIGHT_JOYSTICK, R3),
+						12: (PS2_LEFT_JOYSTICK, TRIANGLE),
+						13: (PS2_LEFT_JOYSTICK, CIRCLE),
+						14: (PS2_LEFT_JOYSTICK, CROSS),
+						15: (PS2_LEFT_JOYSTICK, SQUARE),
+						16: (PS2_LEFT_JOYSTICK, L2),
+						17: (PS2_LEFT_JOYSTICK, R2),
+						18: (PS2_LEFT_JOYSTICK, L1),
+						19: (PS2_LEFT_JOYSTICK, R1),
+						20: (PS2_LEFT_JOYSTICK, SELECT),
+						21: (PS2_LEFT_JOYSTICK, START),
+						22: (PS2_LEFT_JOYSTICK, L3),
+						23: (PS2_LEFT_JOYSTICK, R3)
+	}
+
+
+	def __init__(self):
+		pygame.joystick.init()
+		self.joysticks = []
+
+		for i in range(pygame.joystick.get_count()):
+			self.joysticks.append(pygame.joystick.Joystick(i))
+			self.joysticks[i].init()
+			print('Detected joystick \'' + self.joysticks[i].get_name() + '\'')
+
+	def resolve_button_input(self, joystick_id, button_id):
+		if self.joysticks[joystick_id].get_name() == JoystickManager.PS2_NAME:
+			joystick, button = JoystickManager.PS2_BUTTONS_MAP[button_id][0], JoystickManager.PS2_BUTTONS_MAP[button_id][1]
+			return joystick, button
+
+		return None, None
+
+	def resolve_hat_input(self, joystick_id, hat_id, value):
+		if self.joysticks[joystick_id].get_name() == JoystickManager.PS2_NAME:
+			joystick = JoystickManager.PS2_HATS_MAP[hat_id]
+
+			arrow = None
+			if value == (1, 0):
+				arrow = JoystickManager.RIGHT_ARROW
+			elif value == (0, 1):
+				arrow = JoystickManager.UP_ARROW
+			elif value == (-1, 0):
+				arrow = JoystickManager.LEFT_ARROW
+			elif value == (0, -1):
+				arrow = JoystickManager.DOWN_ARROW
+
+			return joystick, arrow
+
+	def reload_joysticks(self):
+		pygame.joystick.quit()
+		self.__init__()
+
+
 class ScreenManager:
 	def __init__(self):
 		self._resolutions = pygame.display.list_modes()
@@ -97,6 +175,7 @@ class Launcher:
 	def __init__(self):
 		self.screen_manager = ScreenManager()
 		self.screen_surf = self.screen_manager.get_screen_surf()
+		self.joystick_manager = JoystickManager()
 
 		self.allsprites = pygame.sprite.Group()
 		self.square = Square(0, 0, self.allsprites)
@@ -121,6 +200,30 @@ class Launcher:
 						self.screen_manager.shrink_screen()
 					elif event.key == pygame.K_l:
 						self.screen_manager.show_info()
+					elif event.key == pygame.K_j:
+						self.joystick_manager.reload_joysticks()
+
+				elif event.type == pygame.JOYBUTTONDOWN:
+					joystick, button = self.joystick_manager.resolve_button_input(event.joy, event.button)
+					if joystick == self.joystick_manager.PS2_LEFT_JOYSTICK:
+						if button == self.joystick_manager.SQUARE:
+							print('P1, left punch!')
+						if button == self.joystick_manager.TRIANGLE:
+							print('P1, right punch!')
+					if joystick == self.joystick_manager.PS2_RIGHT_JOYSTICK:
+						if button == self.joystick_manager.SQUARE:
+							print('P2, left punch!')
+						if button == self.joystick_manager.TRIANGLE:
+							print('P2, right punch!')
+
+				elif event.type == pygame.JOYHATMOTION:
+					joystick, arrow = self.joystick_manager.resolve_hat_input(event.joy, event.hat, event.value)
+					if joystick == self.joystick_manager.PS2_LEFT_JOYSTICK:
+						if arrow == self.joystick_manager.UP_ARROW:
+							print('P1, jump!')
+					if joystick == self.joystick_manager.PS2_RIGHT_JOYSTICK:
+						if arrow == self.joystick_manager.UP_ARROW:
+							print('P2, jump!')					
 
 			self.screen_surf.fill((0, 0, 255))
 			self.allsprites.update()
