@@ -33,15 +33,25 @@ class Square(pygame.sprite.Sprite):
 
 
 class JoystickManager:
+	# Arbitrary names
 	PS2_NAME = 'Twin USB Joystick'
+	SWITCH_PRO_NAME = 'Pro Controller'
 
-	PS2_LEFT_JOYSTICK, PS2_RIGHT_JOYSTICK = 0, 1
-	UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW = 0, 1, 2, 3
+	PS2_LEFT_JOYSTICK, PS2_RIGHT_JOYSTICK, SWITCH_PRO_CONTROLLER = range(3)
 
+	UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW = range(4)
 	(CROSS, SQUARE, TRIANGLE, CIRCLE, 
 	START, SELECT,
 	R1, R2, R3, L1, L2, L3) = range(12)
 
+	(A, B, X, Y,
+	PLUS, MINUS, HOME, SNAPSHOT,
+	R, ZR, L, ZL,
+	ZR3, ZL3) = range(14)
+
+	LEFT_STICK_HORIZONTAL, LEFT_STICK_VERTICAL, RIGHT_STICK_HORIZONTAL, RIGHT_STICK_VERTICAL = range(4)
+
+	# Mapping - do not change
 	PS2_HATS_MAP = 	   {0: PS2_RIGHT_JOYSTICK,
 						1: PS2_LEFT_JOYSTICK
 	}	
@@ -72,6 +82,31 @@ class JoystickManager:
 						23: (PS2_LEFT_JOYSTICK, R3)
 	}
 
+	SWITCH_PRO_BUTTONS_MAP =   {0:  B,
+								1:  A,
+								2:  Y,
+								3:  X,
+								4:  L,
+								5:  R,
+								6:  ZL,
+								7:  ZR,
+								8:  MINUS,
+								9:  PLUS,
+								10: ZL3,
+								11: ZR3,
+								12: HOME,
+								13: SNAPSHOT
+	}
+
+	SWITCH_PRO_AXIS_MAP =  {0: LEFT_STICK_HORIZONTAL,
+							1: LEFT_STICK_VERTICAL,
+							2: RIGHT_STICK_HORIZONTAL,
+							3: RIGHT_STICK_VERTICAL
+	}
+
+	# Arbitrary parameter
+	SWITCH_AXES_TOLERANCE = 0.5
+
 
 	def __init__(self):
 		pygame.joystick.init()
@@ -82,18 +117,25 @@ class JoystickManager:
 			self.joysticks[i].init()
 			print('Detected joystick \'' + self.joysticks[i].get_name() + '\'')
 
+	def _identify(self, joystick_id):
+		return self.joysticks[joystick_id].get_name()
+
 	def resolve_button_input(self, joystick_id, button_id):
+		joystick, button = None, None
 		if self.joysticks[joystick_id].get_name() == JoystickManager.PS2_NAME:
 			joystick, button = JoystickManager.PS2_BUTTONS_MAP[button_id][0], JoystickManager.PS2_BUTTONS_MAP[button_id][1]
-			return joystick, button
 
-		return None, None
+		elif self.joysticks[joystick_id].get_name() == JoystickManager.SWITCH_PRO_NAME:
+			joystick, button = JoystickManager.SWITCH_PRO_CONTROLLER, JoystickManager.SWITCH_PRO_BUTTONS_MAP[button_id]
+
+		return joystick, button
 
 	def resolve_hat_input(self, joystick_id, hat_id, value):
-		if self.joysticks[joystick_id].get_name() == JoystickManager.PS2_NAME:
+		joystick, arrow = None, None
+
+		if self._identify(joystick_id) == JoystickManager.PS2_NAME:
 			joystick = JoystickManager.PS2_HATS_MAP[hat_id]
 
-			arrow = None
 			if value == (1, 0):
 				arrow = JoystickManager.RIGHT_ARROW
 			elif value == (0, 1):
@@ -103,7 +145,34 @@ class JoystickManager:
 			elif value == (0, -1):
 				arrow = JoystickManager.DOWN_ARROW
 
-			return joystick, arrow
+		elif self._identify(joystick_id) == JoystickManager.SWITCH_PRO_NAME:
+			joystick = JoystickManager.SWITCH_PRO_CONTROLLER
+
+			if value == (1, 0):
+				arrow = JoystickManager.RIGHT_ARROW
+			elif value == (0, 1):
+				arrow = JoystickManager.UP_ARROW
+			elif value == (-1, 0):
+				arrow = JoystickManager.LEFT_ARROW
+			elif value == (0, -1):
+				arrow = JoystickManager.DOWN_ARROW
+
+		return joystick, arrow
+
+	def resolve_axis_input(self):
+		joysticks = []
+		axes = []
+		values = []
+
+		for joystick in self.joysticks:
+			if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
+				for i in range(len(JoystickManager.SWITCH_PRO_AXIS_MAP)):
+					if abs(joystick.get_axis(i)) > JoystickManager.SWITCH_AXES_TOLERANCE:
+						joysticks.append(JoystickManager.SWITCH_PRO_NAME)
+						axes.append(i)
+						values.append(joystick.get_axis(i))
+
+		return joysticks, axes, values
 
 	def reload_joysticks(self):
 		pygame.joystick.quit()
@@ -215,15 +284,31 @@ class Launcher:
 							print('P2, left punch!')
 						if button == self.joystick_manager.TRIANGLE:
 							print('P2, right punch!')
+					if joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
+						if button == self.joystick_manager.Y:
+							print('P3, left punch!')
+						if button == self.joystick_manager.X:
+							print('P3, right punch!')
 
 				elif event.type == pygame.JOYHATMOTION:
 					joystick, arrow = self.joystick_manager.resolve_hat_input(event.joy, event.hat, event.value)
 					if joystick == self.joystick_manager.PS2_LEFT_JOYSTICK:
 						if arrow == self.joystick_manager.UP_ARROW:
 							print('P1, jump!')
-					if joystick == self.joystick_manager.PS2_RIGHT_JOYSTICK:
+					elif joystick == self.joystick_manager.PS2_RIGHT_JOYSTICK:
 						if arrow == self.joystick_manager.UP_ARROW:
 							print('P2, jump!')					
+					elif joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
+						if arrow == self.joystick_manager.UP_ARROW:
+							print('P3, jump!')	
+
+				joysticks, axes, values = self.joystick_manager.resolve_axis_input()
+				for i in range(len(joysticks)):
+					print(joysticks[i])
+					print(self.joystick_manager.SWITCH_PRO_AXIS_MAP[axes[i]])
+					print(values[i])
+
+
 
 			self.screen_surf.fill((0, 0, 255))
 			self.allsprites.update()
@@ -238,6 +323,21 @@ class Launcher:
 if __name__ == '__main__':
 	pygame.init()
 	Launcher().run()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
