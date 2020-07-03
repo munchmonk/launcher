@@ -56,11 +56,28 @@ class VirtualJoystick:
 	L3 = 'L3'
 	SR = 'SR'
 	SL = 'SL'
+
 	LEFT_ARROW = 'LEFT_ARROW'
 	UP_ARROW = 'UP_ARROW'
 	RIGHT_ARROW = 'RIGHT_ARROW'
 	DOWN_ARROW = 'DOWN_ARROW'
 
+	RIGHT_BALL = 'RIGHT_BALL'
+	LEFT_BALL = 'LEFT_BALL'
+	HORIZONTAL_AXIS = 'HORIZONTAL_AXIS'
+	VERTICAL_AXIS = 'VERTICAL_AXIS'
+
+	BALL_NEUTRAL = 'BALL_NEUTRAL'
+	BALL_UP = 'BALL_UP'
+	BALL_UP_RIGHT = 'BALL_UP_RIGHT'
+	BALL_RIGHT = 'BALL_RIGHT'
+	BALL_DOWN_RIGHT = 'BALL_DOWN_RIGHT'
+	BALL_DOWN = 'BALL_DOWN'
+	BALL_DOWN_LEFT = 'BALL_DOWN_LEFT'
+	BALL_LEFT = 'BALL_LEFT'
+	BALL_UP_LEFT = 'BALL_UP_LEFT'
+
+	# Physical map - do not change
 	BUTTON_MAP =   {SWITCH_PRO_CONTROLLER:     {0:  B,
 												1:  A,
 												2:  Y,
@@ -126,10 +143,62 @@ class VirtualJoystick:
 					}
 	}
 
+	# Physical map - do not change
+	HAT_MAP = {JOYCON_RIGHT_VERTICAL:  {(0, 0):		BALL_NEUTRAL,
+										(1, 0): 	BALL_UP,
+										(1, -1):	BALL_UP_RIGHT,
+										(0, -1):	BALL_RIGHT,
+										(-1, -1): 	BALL_DOWN_RIGHT,
+										(-1, 0):	BALL_DOWN,
+										(-1, 1):	BALL_DOWN_LEFT,
+										(0, 1): 	BALL_LEFT,
+										(1, 1): 	BALL_UP_LEFT
+			 },
+			 JOYCON_RIGHT_HORIZONTAL:  {(0, 0):		BALL_NEUTRAL,
+										(1, 0): 	BALL_RIGHT,
+										(1, -1):	BALL_DOWN_RIGHT,
+										(0, -1):	BALL_DOWN,
+										(-1, -1): 	BALL_DOWN_LEFT,
+										(-1, 0):	BALL_LEFT,
+										(-1, 1):	BALL_UP_LEFT,
+										(0, 1): 	BALL_UP,
+										(1, 1): 	BALL_UP_RIGHT
+			},
+			 JOYCON_LEFT_VERTICAL: 	   {(0, 0):		BALL_NEUTRAL,
+										(1, 0): 	BALL_DOWN,
+										(1, -1):	BALL_DOWN_LEFT,
+										(0, -1):	BALL_LEFT,
+										(-1, -1): 	BALL_UP_LEFT,
+										(-1, 0):	BALL_UP,
+										(-1, 1):	BALL_UP_RIGHT,
+										(0, 1): 	BALL_RIGHT,
+										(1, 1): 	BALL_DOWN_RIGHT
+			},
+			JOYCON_LEFT_HORIZONTAL:    {(0, 0):		BALL_NEUTRAL,
+										(1, 0): 	BALL_RIGHT,
+										(1, -1):	BALL_DOWN_RIGHT,
+										(0, -1):	BALL_DOWN,
+										(-1, -1): 	BALL_DOWN_LEFT,
+										(-1, 0):	BALL_LEFT,
+										(-1, 1):	BALL_UP_LEFT,
+										(0, 1): 	BALL_UP,
+										(1, 1): 	BALL_UP_RIGHT
+			}
+	}
+
+	# Switch pro controller physical map - do not change
+	LEFT_BALL_HORIZONTAL_AXIS = 0
+	LEFT_BALL_VERTICAL_AXIS = 1
+	RIGHT_BALL_HORIZONTAL_AXIS = 2
+	RIGHT_BALL_VERTICAL_AXIS = 3	
+
 	def __init__(self, name, *physical_joysticks):
 		self.name = name
 		self.physical_joysticks = [physical_joystick for physical_joystick in physical_joysticks]
 		self.active = False
+
+	def is_active(self):
+		return self.active
 
 	def activate(self):
 		self.active = True
@@ -145,6 +214,33 @@ class VirtualJoystick:
 				return VirtualJoystick.BUTTON_MAP[VirtualJoystick.JOYCON_RIGHT_VERTICAL][button_id]
 			elif physical_joystick.get_name() == JoystickManager.JOYCON_LEFT_NAME:
 				return VirtualJoystick.BUTTON_MAP[VirtualJoystick.JOYCON_LEFT_VERTICAL][button_id]
+
+	def process_hat(self, physical_joystick, value):
+		ball, side = None, None
+
+		if physical_joystick.get_name() == JoystickManager.JOYCON_RIGHT_NAME:
+			if self.name == VirtualJoystick.JOYCON_RIGHT_VERTICAL:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_RIGHT_VERTICAL][value]
+			elif self.name == VirtualJoystick.JOYCON_RIGHT_HORIZONTAL:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_RIGHT_HORIZONTAL][value]
+			elif self.name == VirtualJoystick.PAIRED_JOYCONS:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_RIGHT_VERTICAL][value]
+				side = VirtualJoystick.RIGHT_BALL
+
+		elif physical_joystick.get_name() == JoystickManager.JOYCON_LEFT_NAME:
+			if self.name == VirtualJoystick.JOYCON_LEFT_VERTICAL:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_LEFT_VERTICAL][value]
+			elif self.name == VirtualJoystick.JOYCON_LEFT_HORIZONTAL:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_LEFT_HORIZONTAL][value]
+			elif self.name == VirtualJoystick.PAIRED_JOYCONS:
+				ball = VirtualJoystick.HAT_MAP[VirtualJoystick.JOYCON_LEFT_VERTICAL][value]
+				side = VirtualJoystick.LEFT_BALL
+
+		return ball, side
+
+
+
+	
 			
 	def is_linked_to_physical_joystick(self, joystick):
 		for physical_joystick in self.physical_joysticks:
@@ -158,6 +254,8 @@ class JoystickManager:
 	SWITCH_PRO_NAME = 'Pro Controller'
 	JOYCON_LEFT_NAME = 'Joy-Con (L)'
 	JOYCON_RIGHT_NAME = 'Joy-Con (R)'
+
+	SWITCH_PRO_AXES_TOLERANCE = 0.5
 
 	PRIORITY_LIST =    [VirtualJoystick.SWITCH_PRO_CONTROLLER,
 						VirtualJoystick.PAIRED_JOYCONS,
@@ -221,69 +319,93 @@ class JoystickManager:
 		physical_joystick = self.joysticks[joystick_id]
 
 		for virtual_joystick in self.virtual_joysticks:
-			if virtual_joystick.active and virtual_joystick.is_linked_to_physical_joystick(physical_joystick):
+			if virtual_joystick.is_active() and virtual_joystick.is_linked_to_physical_joystick(physical_joystick):
 				joystick = virtual_joystick
 				button = virtual_joystick.process_button(physical_joystick, button_id)
 				# print(joystick.name + ' -> ' + str(button))
 
 		return joystick, button
 
-	# def resolve_hat_input(self, joystick_id, hat_id, value):
-	# 	joystick, arrow = None, None
+	def resolve_hat_input(self, joystick_id, value):
+		joystick, ball, side= None, None, None
+		physical_joystick = self.joysticks[joystick_id]
 
-	# 	if self._identify(joystick_id) == JoystickManager.SWITCH_PRO_NAME:
-	# 		joystick = JoystickManager.SWITCH_PRO_CONTROLLER
+		for virtual_joystick in self.virtual_joysticks:
+			if virtual_joystick.is_active() and virtual_joystick.is_linked_to_physical_joystick(physical_joystick):
+				joystick = virtual_joystick
+				ball, side = virtual_joystick.process_hat(physical_joystick, value)
+				
 
-	# 		if value == (1, 0):
-	# 			arrow = JoystickManager.RIGHT_ARROW
-	# 		elif value == (0, 1):
-	# 			arrow = JoystickManager.UP_ARROW
-	# 		elif value == (-1, 0):
-	# 			arrow = JoystickManager.LEFT_ARROW
-	# 		elif value == (0, -1):
-	# 			arrow = JoystickManager.DOWN_ARROW
+		return joystick, ball, side
 
-	# 	elif self._identify(joystick_id) == JoystickManager.JOYCON_RIGHT_NAME:
-	# 		joystick = JoystickManager.JOYCON_RIGHT
 
-	# 		if value == (1, 0):
-	# 			arrow = JoystickManager.UP_ARROW
-	# 		elif value == (0, 1):
-	# 			arrow = JoystickManager.LEFT_ARROW
-	# 		elif value == (-1, 0):
-	# 			arrow = JoystickManager.DOWN_ARROW
-	# 		elif value == (0, -1):
-	# 			arrow = JoystickManager.RIGHT_ARROW	
 
-	# 	elif self._identify(joystick_id) == JoystickManager.JOYCON_LEFT_NAME:
-	# 		joystick = JoystickManager.JOYCON_LEFT
 
-	# 		if value == (1, 0):
-	# 			arrow = JoystickManager.DOWN_ARROW
-	# 		elif value == (0, 1):
-	# 			arrow = JoystickManager.RIGHT_ARROW
-	# 		elif value == (-1, 0):
-	# 			arrow = JoystickManager.UP_ARROW
-	# 		elif value == (0, -1):
-	# 			arrow = JoystickManager.LEFT_ARROW
+	def resolve_axes(self, joystick):
+		if joystick.get_name() != JoystickManager.SWITCH_PRO_NAME:
+			return None, None, None
 
-	# 	return joystick, arrow
+		sides = [VirtualJoystick.RIGHT_BALL, VirtualJoystick.LEFT_BALL]
+		balls = [None, None]
 
-	# def resolve_axis_input(self):
-	# 	joysticks = []
-	# 	axes = []
-	# 	values = []
+		for virtual_joystick in self.virtual_joysticks:
+			if virtual_joystick.is_active() and virtual_joystick.is_linked_to_physical_joystick(joystick):
+				# Right ball
+				vertical_axis = joystick.get_axis(VirtualJoystick.RIGHT_BALL_VERTICAL_AXIS)
+				horizontal_axis = joystick.get_axis(VirtualJoystick.RIGHT_BALL_HORIZONTAL_AXIS)
+				
+				if abs(vertical_axis) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
+					if vertical_axis > 0:
+						balls[0] = VirtualJoystick.BALL_DOWN
+					else:
+						balls[0] = VirtualJoystick.BALL_UP
 
-	# 	for joystick in self.joysticks:
-	# 		if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
-	# 			for i in range(len(JoystickManager.SWITCH_PRO_AXIS_MAP)):
-	# 				if abs(joystick.get_axis(i)) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
-	# 					joysticks.append(JoystickManager.SWITCH_PRO_NAME)
-	# 					axes.append(i)
-	# 					values.append(abs(joystick.get_axis(i)) / joystick.get_axis(i))
-	# 					# values.append(joystick.get_axis(i))
+				if abs(horizontal_axis) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
+					if horizontal_axis > 0:
+						if balls[0] == VirtualJoystick.BALL_UP:
+							balls[0] = VirtualJoystick.BALL_UP_RIGHT
+						elif balls[0] == VirtualJoystick.BALL_DOWN:
+							balls[0] = VirtualJoystick.BALL_DOWN_RIGHT
+						else:
+							balls[0] = VirtualJoystick.BALL_RIGHT
+					else:
+						if balls[0] == VirtualJoystick.BALL_UP:
+							balls[0] = VirtualJoystick.BALL_UP_LEFT
+						elif balls[0] == VirtualJoystick.BALL_DOWN:
+							balls[0] = VirtualJoystick.BALL_DOWN_LEFT
+						else:
+							balls[0] = VirtualJoystick.BALL_LEFT
 
-	# 	return joysticks, axes, values
+				# Left ball
+				vertical_axis = joystick.get_axis(VirtualJoystick.LEFT_BALL_VERTICAL_AXIS)
+				horizontal_axis = joystick.get_axis(VirtualJoystick.LEFT_BALL_HORIZONTAL_AXIS)
+				
+				if abs(vertical_axis) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
+					if vertical_axis > 0:
+						balls[1] = VirtualJoystick.BALL_DOWN
+					else:
+						balls[1] = VirtualJoystick.BALL_UP
+
+				if abs(horizontal_axis) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
+					if horizontal_axis > 0:
+						if balls[1] == VirtualJoystick.BALL_UP:
+							balls[1] = VirtualJoystick.BALL_UP_RIGHT
+						elif balls[1] == VirtualJoystick.BALL_DOWN:
+							balls[1] = VirtualJoystick.BALL_DOWN_RIGHT
+						else:
+							balls[1] = VirtualJoystick.BALL_RIGHT
+					else:
+						if balls[1] == VirtualJoystick.BALL_UP:
+							balls[1] = VirtualJoystick.BALL_UP_LEFT
+						elif balls[1] == VirtualJoystick.BALL_DOWN:
+							balls[1] = VirtualJoystick.BALL_DOWN_LEFT
+						else:
+							balls[1] = VirtualJoystick.BALL_LEFT
+
+				return virtual_joystick, sides, balls
+		return None, None, None
+
+
 
 	def reload_joysticks(self):
 		pygame.joystick.quit()
@@ -294,18 +416,6 @@ class JoystickManager:
 			if joystick.get_name() == name:
 				return joystick
 		return None
-
-	# def _find_joystick_by_virtual_name(self, virtual_name):
-	# 	if virtual_name == JoystickManager.SWITCH_PRO_CONTROLLER:
-	# 		return self._find_joystick_by_name(JoystickManager.SWITCH_PRO_NAME)
-	# 	elif virtual_name == JoystickManager.JOYCON_RIGHT:
-	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_RIGHT_NAME)
-	# 	elif virtual_name == JoystickManager.JOYCON_LEFT:
-	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_LEFT_NAME)
-	# 	elif virtual_name == JoystickManager.PAIRED_JOYCONS:
-	# 		return self._find_joystick_by_name(JoystickManager.PAIRED_JOYCONS_NAME)
-
-	# 	return None
 
 
 	def select_joystick_configuration(self):
@@ -474,24 +584,31 @@ class Launcher:
 					elif self.p2_joystick and self.p2_joystick == virtual_joystick:
 						print('P2 using ' + virtual_joystick.name + ' -> ' + button)
 
-				# elif event.type == pygame.JOYHATMOTION:
-				# 	joystick, arrow = self.joystick_manager.resolve_hat_input(event.joy, event.hat, event.value)
+				elif event.type == pygame.JOYHATMOTION:
+					virtual_joystick, ball, side = self.joystick_manager.resolve_hat_input(event.joy, event.value)
+					if self.p1_joystick and self.p1_joystick == virtual_joystick:
+						s = 'P1 using ' + virtual_joystick.name + ' -> ' + ball
+						if side:
+							s += ', ' + side
+						print(s)
+					elif self.p2_joystick and self.p2_joystick == virtual_joystick:
+						s = 'P2 using ' + virtual_joystick.name + ' -> ' + ball
+						if side:
+							s += ', ' + side
+						print(s)
 
-				# 	if joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
-				# 		if arrow == self.joystick_manager.UP_ARROW:
-				# 			print('P3, jump!')
-				# 	elif joystick == self.joystick_manager.JOYCON_RIGHT:
-				# 		if arrow == self.joystick_manager.UP_ARROW:
-				# 			print('Red, jump!')
-				# 	elif joystick == self.joystick_manager.JOYCON_LEFT:
-				# 		if arrow == self.joystick_manager.UP_ARROW:
-				# 			print('Blue, jump!')
+				for joystick in self.joystick_manager.joysticks:
+					virtual_joystick, sides, balls = self.joystick_manager.resolve_axes(joystick)
 
-				# joysticks, axes, values = self.joystick_manager.resolve_axis_input()
-				# for i in range(len(joysticks)):
-				# 	print(joysticks[i])
-				# 	print(self.joystick_manager.SWITCH_PRO_AXIS_MAP[axes[i]])
-				# 	print(values[i])
+					if self.p1_joystick and self.p1_joystick == virtual_joystick:
+						for i in range(len(sides)):
+							if balls[i]:
+								print('P1 using ' + virtual_joystick.name + ' -> ' + balls[i] + ', ' + sides[i])
+
+					if self.p2_joystick and self.p2_joystick == virtual_joystick:
+						for i in range(len(sides)):
+							if balls[i]:
+								print('P2 using ' + virtual_joystick.name + ' -> ' + balls[i] + ', ' + sides[i])
 
 			self.screen_surf.fill((0, 0, 255))
 			self.allsprites.update()

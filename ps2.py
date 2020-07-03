@@ -1,3 +1,18 @@
+
+	# def _find_joystick_by_virtual_name(self, virtual_name):
+	# 	if virtual_name == JoystickManager.SWITCH_PRO_CONTROLLER:
+	# 		return self._find_joystick_by_name(JoystickManager.SWITCH_PRO_NAME)
+	# 	elif virtual_name == JoystickManager.JOYCON_RIGHT:
+	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_RIGHT_NAME)
+	# 	elif virtual_name == JoystickManager.JOYCON_LEFT:
+	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_LEFT_NAME)
+	# 	elif virtual_name == JoystickManager.PAIRED_JOYCONS:
+	# 		return self._find_joystick_by_name(JoystickManager.PAIRED_JOYCONS_NAME)
+
+	# 	return None
+
+	
+
 PS2_NAME = 'Twin USB Joystick'
 PS2_JOYSTICK_LEFT, PS2_JOYSTICK_RIGHT, SWITCH_PRO_CONTROLLER, JOYCON_LEFT, JOYCON_RIGHT, PAIRED_JOYCONS = range(6)
 
