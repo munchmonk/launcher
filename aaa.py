@@ -32,128 +32,138 @@ class Square(pygame.sprite.Sprite):
 		pass
 
 
-
-
 class VirtualJoystick:
-	def __init__(self, name):
+	SWITCH_PRO_CONTROLLER 	= 'Pro controller'
+	JOYCON_LEFT_VERTICAL 	= 'Left joycon, vertical'
+	JOYCON_LEFT_HORIZONTAL 	= 'Left joycon, horizontal'
+	JOYCON_RIGHT_VERTICAL 	= 'Right joycon, vertical'
+	JOYCON_RIGHT_HORIZONTAL = 'Right joycon, horizontal'
+	PAIRED_JOYCONS 			= 'Paired joycons'
+
+	A = 'A'
+	B = 'B'
+	X = 'X'
+	Y = 'Y'
+	PLUS = 'PLUS'
+	MINUS = 'MINUS'
+	HOME = 'HOME'
+	SNAPSHOT = 'SNAPSHOT'
+	R = 'R'
+	ZR = 'ZR'
+	R3 = 'R3'
+	L = 'L'
+	ZL = 'ZL'
+	L3 = 'L3'
+	SR = 'SR'
+	SL = 'SL'
+	LEFT_ARROW = 'LEFT_ARROW'
+	UP_ARROW = 'UP_ARROW'
+	RIGHT_ARROW = 'RIGHT_ARROW'
+	DOWN_ARROW = 'DOWN_ARROW'
+
+	BUTTON_MAP =   {SWITCH_PRO_CONTROLLER:     {0:  B,
+												1:  A,
+												2:  Y,
+												3:  X,
+												4: 	L,
+												5:  R,
+												6:  ZL,
+												7:  ZR,
+												8:  MINUS,
+												9:  PLUS,
+												10: L3,
+												11: R3,
+												12: HOME,
+												13: SNAPSHOT
+					},
+					JOYCON_RIGHT_VERTICAL: 	   {0:  A,
+												1:  X,
+												2:  B,
+												3:  Y,
+												4: 	SL,
+												5:  SR,
+												9:  PLUS,
+												11: R3,
+												12: HOME,
+												14: R,
+												15: ZR
+					},
+					JOYCON_RIGHT_HORIZONTAL:   {0:  B,
+												1:  A,
+												2:  Y,
+												3:  X,
+												4: 	SL,
+												5:  SR,
+												9:  PLUS,
+												11: R3,
+												12: HOME,
+												14: R,
+												15: ZR
+					},
+					JOYCON_LEFT_VERTICAL:	   {0:  LEFT_ARROW,
+												1:  DOWN_ARROW,
+												2:  UP_ARROW,
+												3:  RIGHT_ARROW,
+												4: 	SL,
+												5:  SR,
+												8:  MINUS,
+												10: L3,
+												13: SNAPSHOT,
+												14: L,
+												15: ZL
+					},
+					JOYCON_LEFT_HORIZONTAL:    {0:  DOWN_ARROW,
+												1:  RIGHT_ARROW,
+												2:  LEFT_ARROW,
+												3:  UP_ARROW,
+												4: 	SL,
+												5:  SR,
+												8:  MINUS,
+												10: L3,
+												13: SNAPSHOT,
+												14: L,
+												15: ZL
+					}
+	}
+
+	def __init__(self, name, *physical_joysticks):
 		self.name = name
+		self.physical_joysticks = [physical_joystick for physical_joystick in physical_joysticks]
+		self.active = False
 
-		
+	def activate(self):
+		self.active = True
 
+	def deactivate(self):
+		self.active = False
 
-
-
+	def process_button(self, physical_joystick, button_id):
+		if self.name != VirtualJoystick.PAIRED_JOYCONS:
+			return VirtualJoystick.BUTTON_MAP[self.name][button_id]
+		else:
+			if physical_joystick.get_name() == JoystickManager.JOYCON_RIGHT_NAME:
+				return VirtualJoystick.BUTTON_MAP[VirtualJoystick.JOYCON_RIGHT_VERTICAL][button_id]
+			elif physical_joystick.get_name() == JoystickManager.JOYCON_LEFT_NAME:
+				return VirtualJoystick.BUTTON_MAP[VirtualJoystick.JOYCON_LEFT_VERTICAL][button_id]
+			
+	def is_linked_to_physical_joystick(self, joystick):
+		for physical_joystick in self.physical_joysticks:
+			if physical_joystick == joystick:
+				return True
+		return False
 
 
 class JoystickManager:
-	# Names set by pygame
-	# PS2_NAME = 'Twin USB Joystick'
+	# Physical names set by pygame
 	SWITCH_PRO_NAME = 'Pro Controller'
 	JOYCON_LEFT_NAME = 'Joy-Con (L)'
 	JOYCON_RIGHT_NAME = 'Joy-Con (R)'
 
-	# Name set by me
-	PAIRED_JOYCONS_NAME = 'Paired joycons'
-
-	# Arbitrary names - virtual joysticks
-	# PS2_JOYSTICK_LEFT, PS2_JOYSTICK_RIGHT, SWITCH_PRO_CONTROLLER, JOYCON_LEFT, JOYCON_RIGHT, PAIRED_JOYCONS = range(6)
-	SWITCH_PRO_CONTROLLER, JOYCON_LEFT, JOYCON_RIGHT, PAIRED_JOYCONS = range(4)
-
-	UP_ARROW, DOWN_ARROW, LEFT_ARROW, RIGHT_ARROW = range(4)
-
-	# (CROSS, SQUARE, TRIANGLE, CIRCLE, 
-	# START, SELECT,
-	# R1, R2, R3, L1, L2, L3) = range(12)
-
-	(A, B, X, Y,
-	PLUS, MINUS, HOME, SNAPSHOT,
-	R, ZR, R3, L, ZL, L3,
-	SR, SL) = range(16)
-
-	LEFT_STICK_HORIZONTAL, LEFT_STICK_VERTICAL, RIGHT_STICK_HORIZONTAL, RIGHT_STICK_VERTICAL = range(4)
-
-	# Mapping - do not change
-	# PS2_HATS_MAP = 	   {0: PS2_JOYSTICK_RIGHT,
-	# 					1: PS2_JOYSTICK_LEFT
-	# }	
-
-	# PS2_BUTTONS_MAP =  {0:  (PS2_JOYSTICK_RIGHT, TRIANGLE),
-	# 					1:  (PS2_JOYSTICK_RIGHT, CIRCLE),
-	# 					2:  (PS2_JOYSTICK_RIGHT, CROSS),
-	# 					3:  (PS2_JOYSTICK_RIGHT, SQUARE),
-	# 					4:  (PS2_JOYSTICK_RIGHT, L2),
-	# 					5:  (PS2_JOYSTICK_RIGHT, R2),
-	# 					6:  (PS2_JOYSTICK_RIGHT, L1),
-	# 					7:  (PS2_JOYSTICK_RIGHT, R1),
-	# 					8:  (PS2_JOYSTICK_RIGHT, SELECT),
-	# 					9:  (PS2_JOYSTICK_RIGHT, START),
-	# 					10: (PS2_JOYSTICK_RIGHT, L3),
-	# 					11: (PS2_JOYSTICK_RIGHT, R3),
-	# 					12: (PS2_JOYSTICK_LEFT, TRIANGLE),
-	# 					13: (PS2_JOYSTICK_LEFT, CIRCLE),
-	# 					14: (PS2_JOYSTICK_LEFT, CROSS),
-	# 					15: (PS2_JOYSTICK_LEFT, SQUARE),
-	# 					16: (PS2_JOYSTICK_LEFT, L2),
-	# 					17: (PS2_JOYSTICK_LEFT, R2),
-	# 					18: (PS2_JOYSTICK_LEFT, L1),
-	# 					19: (PS2_JOYSTICK_LEFT, R1),
-	# 					20: (PS2_JOYSTICK_LEFT, SELECT),
-	# 					21: (PS2_JOYSTICK_LEFT, START),
-	# 					22: (PS2_JOYSTICK_LEFT, L3),
-	# 					23: (PS2_JOYSTICK_LEFT, R3)
-	# }
-
-	SWITCH_PRO_BUTTONS_MAP =   {0:  B,
-								1:  A,
-								2:  Y,
-								3:  X,
-								4:  L,
-								5:  R,
-								6:  ZL,
-								7:  ZR,
-								8:  MINUS,
-								9:  PLUS,
-								10: L3,
-								11: R3,
-								12: HOME,
-								13: SNAPSHOT
-	}
-
-	SWITCH_PRO_AXIS_MAP =  {0: LEFT_STICK_HORIZONTAL,
-							1: LEFT_STICK_VERTICAL,
-							2: RIGHT_STICK_HORIZONTAL,
-							3: RIGHT_STICK_VERTICAL
-	}
-
-	JOYCON_RIGHT_BUTTONS_MAP = {0:  A,
-								1:  X,
-								2:  B,
-								3:  Y,
-								4:  SL,
-								5:  SR,
-								9:  PLUS,
-								11: R3,
-								12: HOME,
-								14: R,
-								15: ZR
-	}
-
-	JOYCON_LEFT_BUTTONS_MAP =  {0:  LEFT_ARROW,
-								1:  DOWN_ARROW,
-								2:  UP_ARROW,
-								3:  RIGHT_ARROW,
-								4:  SL,
-								5:  SR,
-								8:  MINUS,
-								10: L3,
-								13: SNAPSHOT,
-								14: L,
-								15: ZL
-	}
-
-	# Arbitrary parameter
-	SWITCH_PRO_AXES_TOLERANCE = 0.5
-
+	PRIORITY_LIST =    [VirtualJoystick.SWITCH_PRO_CONTROLLER,
+						VirtualJoystick.PAIRED_JOYCONS,
+						VirtualJoystick.JOYCON_RIGHT_VERTICAL,
+						VirtualJoystick.JOYCON_LEFT_VERTICAL
+	]
 
 	def __init__(self):
 		pygame.joystick.init()
@@ -168,103 +178,112 @@ class JoystickManager:
 		self.initialise_virtual_joysticks()
 
 	def initialise_virtual_joysticks(self):
-		if self._find_joystick_by_name(JoystickManager.SWITCH_PRO_NAME):
-			self.virtual_joysticks.append(VirtualJoystick(JoystickManager.SWITCH_PRO_NAME))
+		right_joycon, left_joycon = None, None
 
-		if self._find_joystick_by_name(JoystickManager.JOYCON_RIGHT_NAME):
-			self.virtual_joysticks.append(VirtualJoystick(JoystickManager.JOYCON_RIGHT_NAME)
-				
-		if self._find_joystick_by_name(JoystickManager.JOYCON_LEFT_NAME):
-			self.virtual_joysticks.append(VirtualJoystick(JoystickManager.JOYCON_LEFT_NAME)
+		for joystick in self.joysticks:
+			if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
+				self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.SWITCH_PRO_CONTROLLER, joystick))
 
+			elif joystick.get_name() == JoystickManager.JOYCON_RIGHT_NAME:
+				self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.JOYCON_RIGHT_VERTICAL, joystick))
+				self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, joystick))
+				right_joycon = joystick
 
+			elif joystick.get_name() == JoystickManager.JOYCON_LEFT_NAME:
+				self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.JOYCON_LEFT_VERTICAL, joystick))
+				self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.JOYCON_LEFT_HORIZONTAL, joystick))
+				left_joycon = joystick
+
+		if right_joycon and left_joycon:
+			self.virtual_joysticks.append(VirtualJoystick(VirtualJoystick.PAIRED_JOYCONS, right_joycon, left_joycon))
+
+	def activate_first_joysticks(self):
+		p1, p2 = None, None
+
+		for priority_joystick in JoystickManager.PRIORITY_LIST:
+			if p1 and p2:
+				return p1, p2
+
+			for virtual_joystick in self.virtual_joysticks:
+				if virtual_joystick.name == priority_joystick:
+					virtual_joystick.activate()
+					if not p1:
+						p1 = virtual_joystick
+					else:
+						p2 = virtual_joystick
+		return p1, p2
+							
 	def _identify(self, joystick_id):
 		return self.joysticks[joystick_id].get_name()
 
 	def resolve_button_input(self, joystick_id, button_id):
 		joystick, button = None, None
-		# if self._identify(joystick_id) == JoystickManager.PS2_NAME:
-		# 	joystick, button = JoystickManager.PS2_BUTTONS_MAP[button_id][0], JoystickManager.PS2_BUTTONS_MAP[button_id][1]
+		physical_joystick = self.joysticks[joystick_id]
 
-		if self._identify(joystick_id) == JoystickManager.SWITCH_PRO_NAME:
-			joystick, button = JoystickManager.SWITCH_PRO_CONTROLLER, JoystickManager.SWITCH_PRO_BUTTONS_MAP[button_id]
-
-		elif self._identify(joystick_id) == JoystickManager.JOYCON_RIGHT_NAME:
-			joystick, button = JoystickManager.JOYCON_RIGHT, JoystickManager.JOYCON_RIGHT_BUTTONS_MAP[button_id]
-
-		elif self._identify(joystick_id) == JoystickManager.JOYCON_LEFT_NAME:
-			joystick, button = JoystickManager.JOYCON_LEFT, JoystickManager.JOYCON_LEFT_BUTTONS_MAP[button_id]
+		for virtual_joystick in self.virtual_joysticks:
+			if virtual_joystick.active and virtual_joystick.is_linked_to_physical_joystick(physical_joystick):
+				joystick = virtual_joystick
+				button = virtual_joystick.process_button(physical_joystick, button_id)
+				# print(joystick.name + ' -> ' + str(button))
 
 		return joystick, button
 
-	def resolve_hat_input(self, joystick_id, hat_id, value):
-		joystick, arrow = None, None
+	# def resolve_hat_input(self, joystick_id, hat_id, value):
+	# 	joystick, arrow = None, None
 
-		# if self._identify(joystick_id) == JoystickManager.PS2_NAME:
-		# 	joystick = JoystickManager.PS2_HATS_MAP[hat_id]
+	# 	if self._identify(joystick_id) == JoystickManager.SWITCH_PRO_NAME:
+	# 		joystick = JoystickManager.SWITCH_PRO_CONTROLLER
 
-		# 	if value == (1, 0):
-		# 		arrow = JoystickManager.RIGHT_ARROW
-		# 	elif value == (0, 1):
-		# 		arrow = JoystickManager.UP_ARROW
-		# 	elif value == (-1, 0):
-		# 		arrow = JoystickManager.LEFT_ARROW
-		# 	elif value == (0, -1):
-		# 		arrow = JoystickManager.DOWN_ARROW
+	# 		if value == (1, 0):
+	# 			arrow = JoystickManager.RIGHT_ARROW
+	# 		elif value == (0, 1):
+	# 			arrow = JoystickManager.UP_ARROW
+	# 		elif value == (-1, 0):
+	# 			arrow = JoystickManager.LEFT_ARROW
+	# 		elif value == (0, -1):
+	# 			arrow = JoystickManager.DOWN_ARROW
 
-		if self._identify(joystick_id) == JoystickManager.SWITCH_PRO_NAME:
-			joystick = JoystickManager.SWITCH_PRO_CONTROLLER
+	# 	elif self._identify(joystick_id) == JoystickManager.JOYCON_RIGHT_NAME:
+	# 		joystick = JoystickManager.JOYCON_RIGHT
 
-			if value == (1, 0):
-				arrow = JoystickManager.RIGHT_ARROW
-			elif value == (0, 1):
-				arrow = JoystickManager.UP_ARROW
-			elif value == (-1, 0):
-				arrow = JoystickManager.LEFT_ARROW
-			elif value == (0, -1):
-				arrow = JoystickManager.DOWN_ARROW
+	# 		if value == (1, 0):
+	# 			arrow = JoystickManager.UP_ARROW
+	# 		elif value == (0, 1):
+	# 			arrow = JoystickManager.LEFT_ARROW
+	# 		elif value == (-1, 0):
+	# 			arrow = JoystickManager.DOWN_ARROW
+	# 		elif value == (0, -1):
+	# 			arrow = JoystickManager.RIGHT_ARROW	
 
-		elif self._identify(joystick_id) == JoystickManager.JOYCON_RIGHT_NAME:
-			joystick = JoystickManager.JOYCON_RIGHT
+	# 	elif self._identify(joystick_id) == JoystickManager.JOYCON_LEFT_NAME:
+	# 		joystick = JoystickManager.JOYCON_LEFT
 
-			if value == (1, 0):
-				arrow = JoystickManager.UP_ARROW
-			elif value == (0, 1):
-				arrow = JoystickManager.LEFT_ARROW
-			elif value == (-1, 0):
-				arrow = JoystickManager.DOWN_ARROW
-			elif value == (0, -1):
-				arrow = JoystickManager.RIGHT_ARROW	
+	# 		if value == (1, 0):
+	# 			arrow = JoystickManager.DOWN_ARROW
+	# 		elif value == (0, 1):
+	# 			arrow = JoystickManager.RIGHT_ARROW
+	# 		elif value == (-1, 0):
+	# 			arrow = JoystickManager.UP_ARROW
+	# 		elif value == (0, -1):
+	# 			arrow = JoystickManager.LEFT_ARROW
 
-		elif self._identify(joystick_id) == JoystickManager.JOYCON_LEFT_NAME:
-			joystick = JoystickManager.JOYCON_LEFT
+	# 	return joystick, arrow
 
-			if value == (1, 0):
-				arrow = JoystickManager.DOWN_ARROW
-			elif value == (0, 1):
-				arrow = JoystickManager.RIGHT_ARROW
-			elif value == (-1, 0):
-				arrow = JoystickManager.UP_ARROW
-			elif value == (0, -1):
-				arrow = JoystickManager.LEFT_ARROW
+	# def resolve_axis_input(self):
+	# 	joysticks = []
+	# 	axes = []
+	# 	values = []
 
-		return joystick, arrow
+	# 	for joystick in self.joysticks:
+	# 		if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
+	# 			for i in range(len(JoystickManager.SWITCH_PRO_AXIS_MAP)):
+	# 				if abs(joystick.get_axis(i)) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
+	# 					joysticks.append(JoystickManager.SWITCH_PRO_NAME)
+	# 					axes.append(i)
+	# 					values.append(abs(joystick.get_axis(i)) / joystick.get_axis(i))
+	# 					# values.append(joystick.get_axis(i))
 
-	def resolve_axis_input(self):
-		joysticks = []
-		axes = []
-		values = []
-
-		for joystick in self.joysticks:
-			if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
-				for i in range(len(JoystickManager.SWITCH_PRO_AXIS_MAP)):
-					if abs(joystick.get_axis(i)) > JoystickManager.SWITCH_PRO_AXES_TOLERANCE:
-						joysticks.append(JoystickManager.SWITCH_PRO_NAME)
-						axes.append(i)
-						values.append(abs(joystick.get_axis(i)) / joystick.get_axis(i))
-						# values.append(joystick.get_axis(i))
-
-		return joysticks, axes, values
+	# 	return joysticks, axes, values
 
 	def reload_joysticks(self):
 		pygame.joystick.quit()
@@ -276,60 +295,79 @@ class JoystickManager:
 				return joystick
 		return None
 
-	def _find_joystick_by_virtual_name(self, virtual_name):
-		if virtual_name == JoystickManager.SWITCH_PRO_CONTROLLER:
-			return self._find_joystick_by_name(JoystickManager.SWITCH_PRO_NAME)
-		elif virtual_name == JoystickManager.JOYCON_RIGHT:
-			return self._find_joystick_by_name(JoystickManager.JOYCON_RIGHT_NAME)
-		elif virtual_name == JoystickManager.JOYCON_LEFT:
-			return self._find_joystick_by_name(JoystickManager.JOYCON_LEFT_NAME)
-		elif virtual_name == JoystickManager.PAIRED_JOYCONS:
-			return self._find_joystick_by_name(JoystickManager.PAIRED_JOYCONS_NAME)
+	# def _find_joystick_by_virtual_name(self, virtual_name):
+	# 	if virtual_name == JoystickManager.SWITCH_PRO_CONTROLLER:
+	# 		return self._find_joystick_by_name(JoystickManager.SWITCH_PRO_NAME)
+	# 	elif virtual_name == JoystickManager.JOYCON_RIGHT:
+	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_RIGHT_NAME)
+	# 	elif virtual_name == JoystickManager.JOYCON_LEFT:
+	# 		return self._find_joystick_by_name(JoystickManager.JOYCON_LEFT_NAME)
+	# 	elif virtual_name == JoystickManager.PAIRED_JOYCONS:
+	# 		return self._find_joystick_by_name(JoystickManager.PAIRED_JOYCONS_NAME)
 
-		return None
+	# 	return None
 
 
 	def select_joystick_configuration(self):
 		options = {}
 		opt_index = 0
 
-		print('----------')
-
-		for joystick in self.joysticks:
-			print(str(opt_index) + ': ' + joystick.get_name())
-			if joystick.get_name() == JoystickManager.SWITCH_PRO_NAME:
-				options[opt_index] = JoystickManager.SWITCH_PRO_CONTROLLER
-			elif joystick.get_name() == JoystickManager.JOYCON_RIGHT_NAME:
-				options[opt_index] = JoystickManager.JOYCON_RIGHT
-			elif joystick.get_name() == JoystickManager.JOYCON_LEFT_NAME:
-				options[opt_index] = JoystickManager.JOYCON_LEFT
+		for virtual_joystick in self.virtual_joysticks:
+			options[opt_index] = virtual_joystick
 			opt_index += 1
 
-		if JoystickManager.JOYCON_RIGHT in options.values() and JoystickManager.JOYCON_LEFT in options.values():
-			print(str(opt_index) + ': ' + JoystickManager.PAIRED_JOYCONS_NAME)
-			options[opt_index] = JoystickManager.PAIRED_JOYCONS
+		print('----------')
+		for key in options.keys():
+			print(str(key) + ': ' + options[key].name)
+		print('----------')
 
 		p1, p2 = -1, -1
-		print('----------')
-		while p1 not in range(len(options.keys())):
+		while p1 not in (options.keys()):
 			try:
 				p1 = int(input('    > P1 joystick: '))
 			except ValueError:
 				pass
 
-		while p2 not in range(len(options.keys())) or p2 == p1:
+		p1 = options[p1]
+
+		keys_to_delete = []
+		if p1.name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL):
+			for key in options.keys():
+				if options[key].name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					keys_to_delete.append(key)
+		elif p1.name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL):
+			for key in options.keys():
+				if options[key].name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					keys_to_delete.append(key)
+		elif p1.name == VirtualJoystick.PAIRED_JOYCONS:
+			for key in options.keys():
+				if options[key].name in    (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, 
+											VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					keys_to_delete.append(key)
+
+		for key in keys_to_delete:
+			del options[key]
+
+		print('----------')
+		for key in options.keys():
+			print(str(key) + ': ' + options[key].name)
+		print('----------')
+
+		while p2 not in (options.keys()):
 			try:
-				p2 = int(input('    > P2 joystick: '))
+				p2 = int(input('    > P1 joystick: '))
 			except ValueError:
 				pass
 
-		p1 = self._find_joystick_by_virtual_name(options[p1])
-		p2 = self._find_joystick_by_virtual_name(options[p2])
+		p2 = options[p2]
 			
-		return p1, p2
-			
-		
+		for virtual_joystick in self.virtual_joysticks:
+			virtual_joystick.deactivate()
+		p1.activate()
+		p2.activate()
 
+		return p1, p2
+		
 
 class ScreenManager:
 	def __init__(self):
@@ -397,7 +435,7 @@ class Launcher:
 		self.screen_manager = ScreenManager()
 		self.screen_surf = self.screen_manager.get_screen_surf()
 		self.joystick_manager = JoystickManager()
-		self.p1_joystick, self.p2_joystick = self.joystick_manager.select_joystick_configuration()
+		self.p1_joystick, self.p2_joystick = self.joystick_manager.activate_first_joysticks()
 
 		self.allsprites = pygame.sprite.Group()
 		self.square = Square(0, 0, self.allsprites)
@@ -425,61 +463,35 @@ class Launcher:
 					elif event.key == pygame.K_j:
 						self.joystick_manager.reload_joysticks()
 					elif event.key == pygame.K_s:
-						self.joystick_manager.select_joystick_configuration()
+						self.p1_joystick, self.p2_joystick = self.joystick_manager.select_joystick_configuration()
+					elif event.key == pygame.K_y:
+						print(self.p1_joystick, self.p2_joystick)
 
 				elif event.type == pygame.JOYBUTTONDOWN:
-					joystick, button = self.joystick_manager.resolve_button_input(event.joy, event.button)
-					# if joystick == self.joystick_manager.PS2_JOYSTICK_LEFT:
-					# 	if button == self.joystick_manager.SQUARE:
-					# 		print('P1, left punch!')
-					# 	elif button == self.joystick_manager.TRIANGLE:
-					# 		print('P1, right punch!')
-					# elif joystick == self.joystick_manager.PS2_JOYSTICK_RIGHT:
-					# 	if button == self.joystick_manager.SQUARE:
-					# 		print('P2, left punch!')
-					# 	elif button == self.joystick_manager.TRIANGLE:
-					# 		print('P2, right punch!')
-					if joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
-						if button == self.joystick_manager.Y:
-							print('P3, left punch!')
-						elif button == self.joystick_manager.X:
-							print('P3, right punch!')
-					elif joystick == self.joystick_manager.JOYCON_RIGHT:
-						if button == self.joystick_manager.Y:
-							print('Red joycon, left punch!')
-						elif button == self.joystick_manager.X:
-							print('Red joycon, right punch!')
-					elif joystick == self.joystick_manager.JOYCON_LEFT:
-						if button == self.joystick_manager.UP_ARROW:
-							print('Blue joycon, jump!')
-						elif button == self.joystick_manager.DOWN_ARROW:
-							print('Blue joycon, crouch!')
+					virtual_joystick, button = self.joystick_manager.resolve_button_input(event.joy, event.button)
+					if self.p1_joystick and self.p1_joystick == virtual_joystick:
+						print('P1 using ' + virtual_joystick.name + ' -> ' + button)
+					elif self.p2_joystick and self.p2_joystick == virtual_joystick:
+						print('P2 using ' + virtual_joystick.name + ' -> ' + button)
 
-				elif event.type == pygame.JOYHATMOTION:
-					joystick, arrow = self.joystick_manager.resolve_hat_input(event.joy, event.hat, event.value)
-					# if joystick == self.joystick_manager.PS2_JOYSTICK_LEFT:
-					# 	if arrow == self.joystick_manager.UP_ARROW:
-					# 		print('P1, jump!')
-					# elif joystick == self.joystick_manager.PS2_JOYSTICK_RIGHT:
-					# 	if arrow == self.joystick_manager.UP_ARROW:
-					# 		print('P2, jump!')
-					if joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
-						if arrow == self.joystick_manager.UP_ARROW:
-							print('P3, jump!')
-					elif joystick == self.joystick_manager.JOYCON_RIGHT:
-						if arrow == self.joystick_manager.UP_ARROW:
-							print('Red, jump!')
-					elif joystick == self.joystick_manager.JOYCON_LEFT:
-						if arrow == self.joystick_manager.UP_ARROW:
-							print('Blue, jump!')
+				# elif event.type == pygame.JOYHATMOTION:
+				# 	joystick, arrow = self.joystick_manager.resolve_hat_input(event.joy, event.hat, event.value)
 
-				joysticks, axes, values = self.joystick_manager.resolve_axis_input()
-				for i in range(len(joysticks)):
-					print(joysticks[i])
-					print(self.joystick_manager.SWITCH_PRO_AXIS_MAP[axes[i]])
-					print(values[i])
+				# 	if joystick == self.joystick_manager.SWITCH_PRO_CONTROLLER:
+				# 		if arrow == self.joystick_manager.UP_ARROW:
+				# 			print('P3, jump!')
+				# 	elif joystick == self.joystick_manager.JOYCON_RIGHT:
+				# 		if arrow == self.joystick_manager.UP_ARROW:
+				# 			print('Red, jump!')
+				# 	elif joystick == self.joystick_manager.JOYCON_LEFT:
+				# 		if arrow == self.joystick_manager.UP_ARROW:
+				# 			print('Blue, jump!')
 
-
+				# joysticks, axes, values = self.joystick_manager.resolve_axis_input()
+				# for i in range(len(joysticks)):
+				# 	print(joysticks[i])
+				# 	print(self.joystick_manager.SWITCH_PRO_AXIS_MAP[axes[i]])
+				# 	print(values[i])
 
 			self.screen_surf.fill((0, 0, 255))
 			self.allsprites.update()
