@@ -27,8 +27,21 @@
 
 # Stick('ciao', 3)
 
-options = {0: 'ciao', 1: 'mamma', 2: 'guarda', 3: 'come', 4: 'mi', 5: 'diverto'}
-del options[3]
-print(options)
-print(options.keys())
-print(options.values())
+# options = {0: 'ciao', 1: 'mamma', 2: 'guarda', 3: 'come', 4: 'mi', 5: 'diverto'}
+
+# print('mamma' in options.values())
+
+a = [1, 2, 3]
+
+a.remove(2)
+print(a) # [1, 3]?
+
+# print(options.keys())
+
+# print((1-5)%3) # 2?
+
+
+# del options[3]
+# print(options)
+# print(options.keys())
+# print(options.values())
