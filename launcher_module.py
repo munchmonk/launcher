@@ -2,20 +2,11 @@
 
 import pygame
 import sys
+import os
 
+sys.path.append('./pong')
 
-class Haunter(pygame.sprite.Sprite):
-	def __init__(self, groups):
-		pygame.sprite.Sprite.__init__(self, groups)
-
-		self.image = pygame.image.load('haunter.png')
-		self.rect = self.image.get_rect(topleft=(0, 0))
-
-	def update(self):
-		pass
-
-	def draw(self):
-		pass
+import pong_module
 
 
 class Square(pygame.sprite.Sprite):
@@ -120,10 +111,10 @@ class VirtualJoystick:
 												14: R,
 												15: ZR
 					},
-					JOYCON_RIGHT_HORIZONTAL:   {0:  B,
-												1:  A,
-												2:  Y,
-												3:  X,
+					JOYCON_RIGHT_HORIZONTAL:   {0:  A,
+												1:  X,
+												2:  B,
+												3:  Y,
 												4: 	SL,
 												5:  SR,
 												9:  PLUS,
@@ -199,7 +190,7 @@ class VirtualJoystick:
 										(0, 1): 	BALL_UP,
 										(1, 1): 	BALL_UP_RIGHT
 			},
-			SWITCH_PRO_CONTROLLER:	   {(0,0) : 	NEUTRAL_ARROW,
+			SWITCH_PRO_CONTROLLER:	   {(0, 0): 	NEUTRAL_ARROW,
 										(0, 1):		UP_ARROW,
 										(1, 1):		UP_RIGHT_ARROW,
 										(1, 0):		RIGHT_ARROW,
@@ -329,6 +320,8 @@ class Controller(pygame.sprite.Sprite):
 		return self.options[self.controller_index]
 
 	def draw(self):
+		self.screen_surf.fill((0, 0, 0))
+		self.screen_surf.blit(JoystickManager.JOYSTICK_SELECTION_BACKGROUND_IMAGE, (0, 0))
 		self.screen_surf.blit(self.image, self.rect)
 		pygame.display.flip()
 
@@ -348,6 +341,8 @@ class JoystickManager:
 						VirtualJoystick.JOYCON_RIGHT_VERTICAL,
 						VirtualJoystick.JOYCON_LEFT_VERTICAL
 	]
+
+	JOYSTICK_SELECTION_BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'joystick_selection_background.png'))
 
 	def __init__(self):
 		self.joysticks = []
@@ -495,7 +490,7 @@ class JoystickManager:
 						else:
 							balls[1] = VirtualJoystick.BALL_LEFT
 
-				return virtual_joystick, sides, balls
+				return virtual_joystick, balls, sides
 		return None, None, None
 
 	def reload_joysticks(self):
@@ -620,7 +615,7 @@ class ScreenManager:
 	def is_fullscreen(self):
 		return self._fullscreen
 
-	def toggle_fullscreen(self):
+	def toggle_fullscreen(self, sprites=None):
 		if self.is_fullscreen():
 			pygame.display.set_mode(self._resolutions[self._res_index])
 		else:
@@ -629,22 +624,28 @@ class ScreenManager:
 
 		self._fullscreen = not self._fullscreen
 		self._update_aspect_ratio()
+		if sprites:
+			self.recenter(sprites)
 
-	def enlarge_screen(self):
+	def enlarge_screen(self, sprites=None):
 		if self.is_fullscreen():
 			return
 		if self._res_index == 0:
 			return
 		self._res_index -= 1
 		self._set_screen_surf()
+		if sprites:
+			self.recenter(sprites)
 
-	def shrink_screen(self):
+	def shrink_screen(self, sprites=None):
 		if self.is_fullscreen():
 			return
 		if self._res_index == len(self._resolutions) - 1:
 			return
 		self._res_index += 1
 		self._set_screen_surf()
+		if sprites:
+			self.recenter(sprites)
 
 	def recenter(self, sprites):
 		for sprite in sprites:
@@ -661,6 +662,9 @@ class ScreenManager:
 
 
 class Launcher:
+	FPS = 45
+	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'background.png'))
+
 	def __init__(self):
 		self.screen_manager = ScreenManager()
 		self.screen_surf = self.screen_manager.get_screen_surf()
@@ -670,7 +674,11 @@ class Launcher:
 		self.allsprites = pygame.sprite.Group()
 		# self.square = Square(0, 0, self.allsprites)
 		# self.square = Square(980, 500, self.allsprites)
-		self.background_image = pygame.image.load('background.png')
+		self.background_image = Launcher.BACKGROUND_IMAGE
+		self.clock = pygame.time.Clock()
+		self.dt = 0
+
+		pygame.mouse.set_visible(False)
 
 	def run(self):
 		while True:
@@ -682,16 +690,16 @@ class Launcher:
 					if event.key == pygame.K_ESCAPE:
 						self.quit()
 					elif event.key == pygame.K_w:
-						self.screen_manager.toggle_fullscreen()
-						self.screen_manager.recenter(self.allsprites)
+						self.screen_manager.toggle_fullscreen(self.allsprites)
+						# self.screen_manager.recenter(self.allsprites)
 					elif event.key == pygame.K_r:
 						self.screen_manager.reload()
 					elif event.key == pygame.K_p:
-						self.screen_manager.enlarge_screen()
-						self.screen_manager.recenter(self.allsprites)
+						self.screen_manager.enlarge_screen(self.allsprites)
+						# self.screen_manager.recenter(self.allsprites)
 					elif event.key == pygame.K_o:
-						self.screen_manager.shrink_screen()
-						self.screen_manager.recenter(self.allsprites)
+						self.screen_manager.shrink_screen(self.allsprites)
+						# self.screen_manager.recenter(self.allsprites)
 					elif event.key == pygame.K_l:
 						self.screen_manager.show_info()
 					elif event.key == pygame.K_j:
@@ -700,6 +708,8 @@ class Launcher:
 						self.p1_joystick, self.p2_joystick = self.joystick_manager.select_joystick_configuration(self.screen_surf)
 					elif event.key == pygame.K_y:
 						print(self.p1_joystick, self.p2_joystick)
+					elif event.key == pygame.K_m:
+						pong_module.Pong(self).run()
 
 				elif event.type == pygame.JOYBUTTONDOWN:
 					virtual_joystick, button = self.joystick_manager.resolve_button_input(event.joy, event.button)
@@ -722,22 +732,24 @@ class Launcher:
 						print(s)
 
 				for joystick in self.joystick_manager.joysticks:
-					virtual_joystick, sides, balls = self.joystick_manager.resolve_axes(joystick)
+					virtual_joystick, axes, sides = self.joystick_manager.resolve_axes(joystick)
 
 					if self.p1_joystick and self.p1_joystick == virtual_joystick:
 						for i in range(len(sides)):
-							if balls[i]:
-								print('P1 using ' + virtual_joystick.name + ' -> ' + balls[i] + ', ' + sides[i])
+							if axes[i]:
+								print('P1 using ' + virtual_joystick.name + ' -> ' + axes[i] + ', ' + sides[i])
 
 					if self.p2_joystick and self.p2_joystick == virtual_joystick:
 						for i in range(len(sides)):
-							if balls[i]:
-								print('P2 using ' + virtual_joystick.name + ' -> ' + balls[i] + ', ' + sides[i])
+							if axes[i]:
+								print('P2 using ' + virtual_joystick.name + ' -> ' + axes[i] + ', ' + sides[i])
 
+			self.screen_surf.fill((0, 0, 0))
 			self.screen_surf.blit(self.background_image, (0, 0))
 			self.allsprites.update()
 			self.allsprites.draw(self.screen_surf)
 			pygame.display.flip()
+			self.dt = self.clock.tick(Launcher.FPS)
 
 	def quit(self):
 		pygame.quit()
@@ -771,3 +783,30 @@ if __name__ == '__main__':
 
 
 	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
