@@ -334,13 +334,21 @@ class JoystickManager:
 
 	SWITCH_PRO_AXES_TOLERANCE = 0.5
 
-	PRIORITY_LIST =    [VirtualJoystick.SWITCH_PRO_CONTROLLER,
-						VirtualJoystick.PAIRED_JOYCONS,
-						VirtualJoystick.JOYCON_RIGHT_HORIZONTAL,
-						VirtualJoystick.JOYCON_LEFT_HORIZONTAL,
+	PRIORITY_LIST =    [VirtualJoystick.JOYCON_LEFT_VERTICAL,
 						VirtualJoystick.JOYCON_RIGHT_VERTICAL,
-						VirtualJoystick.JOYCON_LEFT_VERTICAL
+						VirtualJoystick.JOYCON_LEFT_HORIZONTAL,
+						VirtualJoystick.JOYCON_RIGHT_HORIZONTAL,
+						VirtualJoystick.SWITCH_PRO_CONTROLLER,
+						VirtualJoystick.PAIRED_JOYCONS
 	]
+
+	# PRIORITY_LIST =    [VirtualJoystick.SWITCH_PRO_CONTROLLER,
+	# 					VirtualJoystick.PAIRED_JOYCONS,
+	# 					VirtualJoystick.JOYCON_RIGHT_HORIZONTAL,
+	# 					VirtualJoystick.JOYCON_LEFT_HORIZONTAL,
+	# 					VirtualJoystick.JOYCON_RIGHT_VERTICAL,
+	# 					VirtualJoystick.JOYCON_LEFT_VERTICAL
+	# ]
 
 	JOYSTICK_SELECTION_BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'joystick_selection_background.png'))
 

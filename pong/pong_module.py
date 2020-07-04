@@ -85,12 +85,19 @@ class Ball(pygame.sprite.Sprite):
 	def bounce_off_pads(self, dx, dy):
 		for pad in self.pong.allpads:
 			if self.rect.colliderect(pad.rect):
-				# Vertical bounce
+				# Vertical bounce - move ball up and down until you find the closest free space
 				if not dx:
-					if self.rect.bottom > pad.rect.bottom:
-						self.rect.top = pad.rect.bottom
-					elif self.rect.top < pad.rect.top:
-						self.rect.bottom = pad.rect.top
+					rect_up = self.rect.copy()
+					rect_down = self.rect.copy()
+
+					while rect_up.colliderect(pad.rect) and rect_down.colliderect(pad.rect):
+						rect_up.y -= 1
+						rect_down.y += 1
+
+					if not rect_up.colliderect(pad.rect):
+						self.rect = rect_up
+					else:
+						self.rect = rect_down
 					self.dy *= -1
 
 				# Horizontal bounce
@@ -219,17 +226,18 @@ class Pad(pygame.sprite.Sprite):
 	SPEED = 0.5
 	DISTANCE_FROM_ARENA_BORDER = 50
 
-	def __init__(self, side, joystick, x, y, arena_borders, *groups):
+	def __init__(self, side, joystick, x, y, pong, *groups):
 		pygame.sprite.Sprite.__init__(self, *groups)
 		self.image = Pad.PAD_IMAGE
 		self.rect = self.image.get_rect(midleft=(x, y))
 		self.side = side
 		self.virtual_joystick = joystick
+		self.pong = pong
 
 		self.command_queue = []
 		self.dy = 0
 		self.speed = Pad.SPEED
-		self.min_x, self.max_x, self.min_y, self.max_y = arena_borders
+		self.min_x, self.max_x, self.min_y, self.max_y = self.pong.get_arena_borders()
 		self.locked = False
 
 	def process_joystick_button_input(self, button):
@@ -280,6 +288,22 @@ class Pad(pygame.sprite.Sprite):
 		if command in (Pad.MOVE_UP_LOCKED, Pad.MOVE_DOWN_LOCKED):
 			self.locked = True
 
+	def check_ball_collision(self):
+		if self.rect.colliderect(self.pong.ball.rect):
+			min_top = self.min_y + self.pong.ball.rect.height
+			max_bottom = self.max_y - self.pong.ball.rect.height
+
+			if self.rect.top < min_top:
+				self.rect.top = min_top
+			elif self.rect.bottom > max_bottom:
+				self.rect.bottom = max_bottom
+
+	def check_wall_collision(self):
+		if self.dy < 0 and self.rect.top < self.min_y:
+			self.rect.top = self.min_y
+		elif self.dy > 0 and self.rect.bottom > self.max_y:
+			self.rect.bottom = self.max_y
+
 	def move(self, dt):
 		if not self.dy:
 			return
@@ -287,10 +311,8 @@ class Pad(pygame.sprite.Sprite):
 		step_y = max(int(abs(self.dy) * self.speed * dt), 1)
 		self.rect.y += abs(self.dy) / self.dy * step_y
 
-		if self.dy < 0 and self.rect.top < self.min_y:
-			self.rect.top = self.min_y
-		elif self.dy > 0 and self.rect.bottom > self.max_y:
-			self.rect.bottom = self.max_y
+		self.check_ball_collision()
+		self.check_wall_collision()
 
 		if not self.locked:
 			self.dy = 0
@@ -328,7 +350,8 @@ class Pong:
 		self.allballs = pygame.sprite.Group()
 
 		self.p1_pad, self.p2_pad = self.create_pads()
-		self.ball = self.create_ball()
+		self.ball = None 
+		self.create_ball()
 
 		self.clock = self.launcher.clock
 		self.dt = self.launcher.dt
@@ -339,15 +362,16 @@ class Pong:
 		left_2 = self.get_arena_borders()[1] - Pad.DISTANCE_FROM_ARENA_BORDER - Pad.PAD_IMAGE.get_rect().width
 		center_y = self.get_arena_borders()[3] // 2
 
-		pad_1 = Pad(Pong.P1, self.p1_joystick, left_1, center_y, self.get_arena_borders(), self.allpads, self.allsprites)
-		pad_2 = Pad(Pong.P2, self.p2_joystick, left_2, center_y, self.get_arena_borders(), self.allpads, self.allsprites)
+		pad_1 = Pad(Pong.P1, self.p1_joystick, left_1, center_y, self, self.allpads, self.allsprites)
+		pad_2 = Pad(Pong.P2, self.p2_joystick, left_2, center_y, self, self.allpads, self.allsprites)
 
 		return pad_1, pad_2
 
 	def create_ball(self):
 		center_x = self.get_arena_borders()[1] // 2
 		center_y = self.get_arena_borders()[3] // 2
-		return Ball(center_x, center_y, self, self.allballs, self.allsprites)
+		self.ball = Ball(center_x, center_y, self, self.allballs, self.allsprites)
+		# return Ball(center_x, center_y, self, self.allballs, self.allsprites)
 
 	def get_arena_borders(self):
 		# Customizable in the future
@@ -399,6 +423,17 @@ class Pong:
 			elif self.p2_joystick and self.p2_joystick == virtual_joystick:
 				self.p2_pad.process_joystick_axes_input(axes, sides)
 
+	def update(self):
+		self.allpads.update(self.dt)
+		self.allballs.update(self.dt)
+
+	def draw(self):
+		self.screen_surf.fill((0, 0, 0))
+		self.screen_surf.blit(self.background_image, (0, 0))
+		self.allsprites.draw(self.screen_surf)
+		pygame.display.flip()
+
+
 	def run(self):
 		while True:
 			for event in pygame.event.get():
@@ -419,15 +454,29 @@ class Pong:
 
 			self.process_joystick_axes_input()
 
-
-			self.allsprites.update(self.dt)
-			self.screen_surf.fill((0, 0, 0))
-			self.screen_surf.blit(self.background_image, (0, 0))
-			self.allsprites.draw(self.screen_surf)
-			pygame.display.flip()
+			self.update()
+			self.draw()
 			self.dt = self.clock.tick(self.fps)
-
 
 
 if __name__ == '__main__':
 	pass
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
