@@ -1,31 +1,67 @@
-#!/usr/local/opt/python@3.8/bin/python3
+#!/Library/Frameworks/Python.framework/Versions/3.7/bin/python3
 
-import random
+import pygame
+import pygame.freetype
+import sys
+pygame.init()
+
+sys.path.append('../')
+
+screen = pygame.display.set_mode((800, 600))
+# my_font = pygame.freetype.Font(None, 30)
+my_font = pygame.freetype.Font('fff_font.ttf', 30)
+fps = 80
+clock = pygame.time.Clock()
+
+while True:
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			pygame.quit()
+			sys.exit()
+
+	my_font.render_to(screen, (100, 100), 'hello world', (255, 0, 0))
+	pygame.display.flip()
+	dt = clock.tick(fps)
+	# print(dt)
+	actual_fps = 1000 / dt
+	print(actual_fps)
+
+
+
+# import random
 
 # for i in range(10):
 # 	print(random.randint(1, 5))
 # 	print(random.random())
 
+# import time
 
-min_angle = 15
-max_angle = 45
-for i in range(10):
+# s = time.time()
+# print('s: ', s)
+# while time.time() - s < 3:
+# 	pass
+# print('f: ', time.time())
+
+
+# min_angle = 15
+# max_angle = 45
+# for i in range(10):
 	# angles =   [random.randint(min_angle, max_angle), random.randint(180 - min_angle, 180 - max_angle), 
 	# 			random.randint(-max_angle, - min_angle), random.randint(-180 + min_angle, -180 + max_angle)]
-	angles =   [random.randint(min_angle, max_angle), random.randint(180 - max_angle, 180 - min_angle),
-				random.randint(-max_angle, - min_angle), random.randint(-180 + min_angle, -180 + max_angle)]
-	a1 = random.randint(min_angle, max_angle)
-	print('a1', a1)
-	print('between', min_angle, max_angle)
-	a2 = random.randint(180 - max_angle, 180 - min_angle)
-	print('a2', a2)
-	print('between', 180 - max_angle, 180 - min_angle)
-	a3 = random.randint(-max_angle, - min_angle)
-	print('a3', a3)
-	print('between', -max_angle, -min_angle)
-	a4 = random.randint(-180 + min_angle, -180 + max_angle)
-	print('a4', a4)
-	print('between', -180 + min_angle, -180 + max_angle)
+	# angles =   [random.randint(min_angle, max_angle), random.randint(180 - max_angle, 180 - min_angle),
+	# 			random.randint(-max_angle, - min_angle), random.randint(-180 + min_angle, -180 + max_angle)]
+	# a1 = random.randint(min_angle, max_angle)
+	# print('a1', a1)
+	# print('between', min_angle, max_angle)
+	# a2 = random.randint(180 - max_angle, 180 - min_angle)
+	# print('a2', a2)
+	# print('between', 180 - max_angle, 180 - min_angle)
+	# a3 = random.randint(-max_angle, - min_angle)
+	# print('a3', a3)
+	# print('between', -max_angle, -min_angle)
+	# a4 = random.randint(-180 + min_angle, -180 + max_angle)
+	# print('a4', a4)
+	# print('between', -180 + min_angle, -180 + max_angle)
 	# print(angles)
 
 

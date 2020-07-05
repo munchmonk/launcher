@@ -1,4 +1,4 @@
-#!/usr/local/opt/python@3.8/bin/python3
+#!/Library/Frameworks/Python.framework/Versions/3.7/bin/python3
 
 import pygame
 import sys
@@ -10,10 +10,10 @@ import pong_module
 
 
 class Square(pygame.sprite.Sprite):
-	def __init__(self, x, y, groups):
-		pygame.sprite.Sprite.__init__(self, groups)
+	def __init__(self, x, y, *groups):
+		pygame.sprite.Sprite.__init__(self, *groups)
 
-		self.image = pygame.image.load('square.png')
+		self.image = pygame.image.load('images/square.png')
 		self.rect = self.image.get_rect(topleft=(x, y))
 
 	def update(self):
@@ -21,6 +21,32 @@ class Square(pygame.sprite.Sprite):
 
 	def draw(self):
 		pass
+
+class SelectionArrows(pygame.sprite.Sprite):
+	NORMAL_IMAGE = pygame.image.load('images/selection_arrows.png')
+	FADED_IMAGE = pygame.image.load('images/selection_arrows_faded.png')
+
+
+	def __init__(self, x, y, controller, *groups):
+		pygame.sprite.Sprite.__init__(self, *groups)
+
+		self.image = SelectionArrows.NORMAL_IMAGE
+		self.rect = self.image.get_rect(center=(x, y))
+		self.center_x, self.center_y = x, y
+
+		self.controller = controller
+
+	def update(self):
+		if not self.controller.alive():
+			self.kill()
+		elif len(self.controller.options) < 2:
+			self.image = SelectionArrows.FADED_IMAGE
+
+	def recenter(self):
+		self.rect.centerx, self.rect.centery = self.center_x, self.center_y
+
+
+	
 
 
 class VirtualJoystick:
@@ -265,42 +291,96 @@ class VirtualJoystick:
 
 
 class Controller(pygame.sprite.Sprite):
-	def __init__(self, screen_surf, options):
-		pygame.sprite.Sprite.__init__(self)
+	def __init__(self, x, y, options, *groups):
+		pygame.sprite.Sprite.__init__(self, *groups)
 
-		self.screen_surf = screen_surf
 		self.controller_index = 0
 		self.options = options
+		self.choice = None
 		self.images = []
 		self.initialise_images()
 
 		self.image = self.images[self.controller_index]
-		self.rect = self.image.get_rect()
+		self.rect = self.image.get_rect(center=(x, y))
+		self.center_x, self.center_y = x, y
 
-		self.recenter()
+
+
+
+	def reset_choice(self):
+		self.choice = None
+
+
+	def update_options(self):
+		options_to_remove = []
+
+		if self.choice.name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL):
+			for option in self.options:
+				if option.name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					options_to_remove.append(option)
+		elif self.choice.name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL):
+			for option in self.options:
+				if option.name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					options_to_remove.append(option)
+		elif self.choice.name == VirtualJoystick.PAIRED_JOYCONS:
+			for option in self.options:
+				if option.name in  (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, 
+									VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
+					options_to_remove.append(option)
+		elif self.choice.name == VirtualJoystick.SWITCH_PRO_CONTROLLER:
+			for option in self.options:
+				if option.name == VirtualJoystick.SWITCH_PRO_CONTROLLER:
+					options_to_remove.append(option)
+
+		for option in options_to_remove:
+			self.options.remove(option)
+
+		
+
+
+	def process_keyboard_input(self, key):
+		if key == pygame.K_RIGHT:
+			self.next_controller()
+		elif key == pygame.K_LEFT:
+			self.previous_controller()
+		elif key == pygame.K_SPACE:
+			self.make_selection()
+			
+
+
+	def make_selection(self):
+		self.choice = self.get_controller_type()
+		self.update_options()
+		if self.options:
+			self.initialise_images()
+			self.controller_index = 0
+			self.image = self.images[self.controller_index]
+
+
 
 	def initialise_images(self):
+		self.images = [] 
+
 		for virtual_joystick in self.options:
 			if virtual_joystick.name == VirtualJoystick.SWITCH_PRO_CONTROLLER:
-				self.images.append(pygame.image.load('pro_controller.jpg'))
+				self.images.append(pygame.image.load('images/pro_controller.jpg'))
 			elif virtual_joystick.name == VirtualJoystick.JOYCON_RIGHT_HORIZONTAL:
-				self.images.append(pygame.image.load('red_joycon_horizontal.jpg'))
+				self.images.append(pygame.image.load('images/red_joycon_horizontal.jpg'))
 			elif virtual_joystick.name == VirtualJoystick.JOYCON_RIGHT_VERTICAL:
-				self.images.append(pygame.image.load('red_joycon_vertical.jpg'))
+				self.images.append(pygame.image.load('images/red_joycon_vertical.jpg'))
 			elif virtual_joystick.name == VirtualJoystick.JOYCON_LEFT_HORIZONTAL:
-				self.images.append(pygame.image.load('blue_joycon_horizontal.jpg'))
+				self.images.append(pygame.image.load('images/blue_joycon_horizontal.jpg'))
 			elif virtual_joystick.name == VirtualJoystick.JOYCON_LEFT_VERTICAL:
-				self.images.append(pygame.image.load('blue_joycon_vertical.jpg'))
+				self.images.append(pygame.image.load('images/blue_joycon_vertical.jpg'))
 			elif virtual_joystick.name == VirtualJoystick.PAIRED_JOYCONS:
-				self.images.append(pygame.image.load('paired_joycons.jpg'))
+				self.images.append(pygame.image.load('images/paired_joycons.jpg'))
 			else:
 				print('Error - no image for ' + virtual_joystick.name)
 				pygame.quit()
 				sys.exit()
 
 	def recenter(self):
-		self.rect.centerx = self.screen_surf.get_width() // 2
-		self.rect.centery = self.screen_surf.get_height() // 2
+		self.rect.centerx, self.rect.centery = self.center_x, self.center_y
 
 	def next_controller(self):
 		self.controller_index = (self.controller_index + 1) % len(self.images)
@@ -320,10 +400,11 @@ class Controller(pygame.sprite.Sprite):
 		return self.options[self.controller_index]
 
 	def draw(self):
-		self.screen_surf.fill((0, 0, 0))
-		self.screen_surf.blit(JoystickManager.JOYSTICK_SELECTION_BACKGROUND_IMAGE, (0, 0))
-		self.screen_surf.blit(self.image, self.rect)
-		pygame.display.flip()
+		pass
+		# self.screen_surf.fill((0, 0, 0))
+		# self.screen_surf.blit(JoystickManager.JOYSTICK_SELECTION_BACKGROUND_IMAGE, (0, 0))
+		# self.screen_surf.blit(self.image, self.rect)
+		# pygame.display.flip()
 
 
 class JoystickManager:
@@ -350,7 +431,7 @@ class JoystickManager:
 	# 					VirtualJoystick.JOYCON_LEFT_VERTICAL
 	# ]
 
-	JOYSTICK_SELECTION_BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'joystick_selection_background.png'))
+	JOYSTICK_SELECTION_BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'images/joystick_selection_background.png'))
 
 	def __init__(self):
 		self.joysticks = []
@@ -420,7 +501,6 @@ class JoystickManager:
 			if virtual_joystick.is_active() and virtual_joystick.is_linked_to_physical_joystick(physical_joystick):
 				joystick = virtual_joystick
 				button = virtual_joystick.process_button(physical_joystick, button_id)
-				# print(joystick.name + ' -> ' + str(button))
 
 		return joystick, button
 
@@ -511,92 +591,23 @@ class JoystickManager:
 				return joystick
 		return None
 
-	def select_joystick_configuration(self, screen_surf):
+	def activate_joysticks(self, joy_1, joy_2):
+		for virtual_joystick in self.virtual_joysticks:
+			virtual_joystick.deactivate()
+
+		joy_1.activate()
+		if joy_2:
+			joy_2.activate()
+
+	def get_joystick_options(self):
 		self.initialise_joysticks()
 
 		options = []
 		for virtual_joystick in self.virtual_joysticks:
 			options.append(virtual_joystick)
-			
-		if not options:
-			print('No joysticks found!')
-			return None, None
 
-		controller_sprite = Controller(screen_surf, options)
-
-		p1, p2 = None, None
-
-		while p1 not in options:
-			for event in pygame.event.get():
-				if event.type == pygame.QUIT:
-					pygame.quit()
-					sys.exit()
-				elif event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_ESCAPE:
-						pygame.quit()
-						sys.exit()
-					elif event.key == pygame.K_RIGHT:
-						controller_sprite.next_controller()
-					elif event.key == pygame.K_LEFT:
-						controller_sprite.previous_controller()
-					elif event.key == pygame.K_SPACE:
-						p1 = controller_sprite.get_controller_type()
-			controller_sprite.draw()
-
-		options_to_remove = []
-		if p1.name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL):
-			for option in options:
-				if option.name in (VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
-					options_to_remove.append(option)
-		elif p1.name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL):
-			for option in options:
-				if option.name in (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
-					options_to_remove.append(option)
-		elif p1.name == VirtualJoystick.PAIRED_JOYCONS:
-			for option in options:
-				if option.name in  (VirtualJoystick.JOYCON_LEFT_VERTICAL, VirtualJoystick.JOYCON_LEFT_HORIZONTAL, 
-									VirtualJoystick.JOYCON_RIGHT_VERTICAL, VirtualJoystick.JOYCON_RIGHT_HORIZONTAL, VirtualJoystick.PAIRED_JOYCONS):
-					options_to_remove.append(option)
-		elif p1.name == VirtualJoystick.SWITCH_PRO_CONTROLLER:
-			for option in options:
-				if option.name == VirtualJoystick.SWITCH_PRO_CONTROLLER:
-					options_to_remove.append(option)
-
-		for option in options_to_remove:
-			options.remove(option)
-
-		if options:
-			controller_sprite.kill()
-			controller_sprite = Controller(screen_surf, options)
-
-			while p2 not in options:
-				for event in pygame.event.get():
-					if event.type == pygame.QUIT:
-						pygame.quit()
-						sys.exit()
-					elif event.type == pygame.KEYDOWN:
-						if event.key == pygame.K_ESCAPE:
-							pygame.quit()
-							sys.exit()
-						elif event.key == pygame.K_RIGHT:
-							controller_sprite.next_controller()
-						elif event.key == pygame.K_LEFT:
-							controller_sprite.previous_controller()
-						elif event.key == pygame.K_SPACE:
-							p2 = controller_sprite.get_controller_type()
-				controller_sprite.draw()
-		else:
-			print('No more joysticks left for P2!')
-
-		for virtual_joystick in self.virtual_joysticks:
-			virtual_joystick.deactivate()
-
-		p1.activate()
-		if p2:
-			p2.activate()
-
-		return p1, p2
-		
+		return options
+	
 
 class ScreenManager:
 	def __init__(self):
@@ -671,7 +682,15 @@ class ScreenManager:
 
 class Launcher:
 	FPS = 45
-	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'background.png'))
+	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'images/background.png'))
+
+	GAME_SELECTION_STATE = 'GAME_SELECTION_STATE'
+	JOYSTICK_SELECTION_STATE = 'JOYSTICK_SELECTION_STATE'
+
+	FONT_COLOR = (177, 93, 60)
+	BIG_FONT_SIZE = 100
+	SMALL_FONT_SIZE = 30
+	FONT_NAME = 'fff_font.ttf'
 
 	def __init__(self):
 		self.screen_manager = ScreenManager()
@@ -680,13 +699,132 @@ class Launcher:
 		self.p1_joystick, self.p2_joystick = self.joystick_manager.activate_first_joysticks()
 
 		self.allsprites = pygame.sprite.Group()
-		# self.square = Square(0, 0, self.allsprites)
-		# self.square = Square(980, 500, self.allsprites)
+		self.allcontrollers = pygame.sprite.Group()
+		self.controller = None
+
+		self.big_font = pygame.freetype.Font(Launcher.FONT_NAME, Launcher.BIG_FONT_SIZE)
+		self.small_font = pygame.freetype.Font(Launcher.FONT_NAME, Launcher.SMALL_FONT_SIZE)
+		
 		self.background_image = Launcher.BACKGROUND_IMAGE
 		self.clock = pygame.time.Clock()
 		self.dt = 0
 
+		self.state = Launcher.GAME_SELECTION_STATE
+
 		pygame.mouse.set_visible(False)
+
+
+
+	def configure_joysticks(self):
+		self.p1_joystick, self.p2_joystick = None, None
+
+		options = self.joystick_manager.get_joystick_options()
+		if not options:
+			print('No joysticks found!')
+			return
+
+		self.state = Launcher.JOYSTICK_SELECTION_STATE
+		self.controller = Controller(self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2, options, self.allsprites, self.allcontrollers)
+		SelectionArrows(self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2, self.controller, self.allsprites)
+
+
+	def resolve_keyboard_input(self, key):
+		if key == pygame.K_ESCAPE:
+			self.quit()
+		elif key == pygame.K_w:
+			self.screen_manager.toggle_fullscreen(self.allsprites)
+
+		if self.state == Launcher.GAME_SELECTION_STATE:
+			if key == pygame.K_j:
+				self.configure_joysticks()
+			elif key == pygame.K_p:
+				pong_module.Pong(self).run()
+
+		if self.state == Launcher.JOYSTICK_SELECTION_STATE:
+			self.controller.process_keyboard_input(key)
+
+	def resolve_joystick_button_input(self, virtual_joystick, button):
+		if (self.p1_joystick and self.p1_joystick == virtual_joystick) or (self.p2_joystick and self.p2_joystick == virtual_joystick):
+			if button in (VirtualJoystick.ZR, VirtualJoystick.ZL):
+				pong_module.Pong(self).run()
+			elif button in (VirtualJoystick.X, VirtualJoystick.UP_ARROW):
+				self.screen_manager.toggle_fullscreen(self.allsprites)
+			elif button in (VirtualJoystick.HOME, VirtualJoystick.SNAPSHOT):
+				self.configure_joysticks()
+
+
+	def update(self):
+		self.allsprites.update()
+
+		if self.state == Launcher.JOYSTICK_SELECTION_STATE:
+			if self.controller.choice:
+				if not self.p1_joystick:
+					self.p1_joystick = self.controller.choice
+					self.controller.reset_choice()
+
+					if not self.controller.options:
+						self.joystick_manager.activate_joysticks(self.p1_joystick, self.p2_joystick)
+						self.controller.kill()
+						self.state = Launcher.GAME_SELECTION_STATE
+						print('No joysticks left for P2!')
+					
+				else:
+					self.p2_joystick = self.controller.choice
+					self.joystick_manager.activate_joysticks(self.p1_joystick, self.p2_joystick)
+					self.controller.kill()
+					self.controller = None
+					self.state = Launcher.GAME_SELECTION_STATE
+
+				
+
+	def draw_player_selecting_joystick(self):
+		player_string = 'PLAYER 1' if not self.p1_joystick else 'PLAYER 2'
+		player_surf, player_rect = self.big_font.render(player_string, Launcher.FONT_COLOR)
+
+		player_rect.centerx = self.controller.rect.centerx
+		player_rect.bottom = self.controller.rect.top - 50
+
+		self.screen_surf.blit(player_surf, player_rect)
+
+
+	def draw_instructions(self):
+		line_1 = 'Press ZR or ZL to play Pong!'
+		line_2 = 'Press X or the up arrow to toggle fullscreen'
+		line_3 = 'Press HOME or SNAPSHOT to select a different'
+		line_4 = 'joystick configuration (this will use the keyboard)'
+
+		surf_1, rect_1 = self.small_font.render(line_1, Launcher.FONT_COLOR)
+		surf_2, rect_2 = self.small_font.render(line_2, Launcher.FONT_COLOR)
+		surf_3, rect_3 = self.small_font.render(line_3, Launcher.FONT_COLOR)
+		surf_4, rect_4 = self.small_font.render(line_4, Launcher.FONT_COLOR)
+
+		top = 150
+		left = 100
+
+		for rect in (rect_1, rect_2, rect_3, rect_4):
+			rect.top = top
+			rect.left = left
+			top += rect.height + 30
+
+		self.screen_surf.blit(surf_1, rect_1)
+		self.screen_surf.blit(surf_2, rect_2)
+		self.screen_surf.blit(surf_3, rect_3)
+		self.screen_surf.blit(surf_4, rect_4)
+
+
+	def draw(self):
+		self.screen_surf.fill((0, 0, 0))
+		self.screen_surf.blit(self.background_image, (0, 0))
+		self.allsprites.draw(self.screen_surf)
+
+		if self.state == Launcher.GAME_SELECTION_STATE:
+			self.draw_instructions()
+
+		elif self.state == Launcher.JOYSTICK_SELECTION_STATE:
+			self.draw_player_selecting_joystick()
+
+		pygame.display.flip()
+
 
 	def run(self):
 		while True:
@@ -695,32 +833,31 @@ class Launcher:
 					self.quit()
 
 				elif event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_ESCAPE:
-						self.quit()
-					elif event.key == pygame.K_w:
-						self.screen_manager.toggle_fullscreen(self.allsprites)
-						# self.screen_manager.recenter(self.allsprites)
-					elif event.key == pygame.K_r:
-						self.screen_manager.reload()
-					elif event.key == pygame.K_p:
-						self.screen_manager.enlarge_screen(self.allsprites)
-						# self.screen_manager.recenter(self.allsprites)
-					elif event.key == pygame.K_o:
-						self.screen_manager.shrink_screen(self.allsprites)
-						# self.screen_manager.recenter(self.allsprites)
-					elif event.key == pygame.K_l:
-						self.screen_manager.show_info()
-					elif event.key == pygame.K_j:
-						self.joystick_manager.reload_joysticks()
-					elif event.key == pygame.K_s:
-						self.p1_joystick, self.p2_joystick = self.joystick_manager.select_joystick_configuration(self.screen_surf)
-					elif event.key == pygame.K_y:
-						print(self.p1_joystick, self.p2_joystick)
-					elif event.key == pygame.K_m:
-						pong_module.Pong(self).run()
+					self.resolve_keyboard_input(event.key)
+
+				
+					# elif event.key == pygame.K_r:
+					# 	self.screen_manager.reload()
+					# elif event.key == pygame.K_p:
+					# 	self.screen_manager.enlarge_screen(self.allsprites)
+					# 	# self.screen_manager.recenter(self.allsprites)
+					# elif event.key == pygame.K_o:
+					# 	self.screen_manager.shrink_screen(self.allsprites)
+					# 	# self.screen_manager.recenter(self.allsprites)
+					# elif event.key == pygame.K_l:
+					# 	self.screen_manager.show_info()
+					# elif event.key == pygame.K_j:
+					# 	self.joystick_manager.reload_joysticks()
+					# elif event.key == pygame.K_y:
+					# 	print(self.p1_joystick, self.p2_joystick)
+					# elif event.key == pygame.K_m:
+					# 	pong_module.Pong(self).run()
 
 				elif event.type == pygame.JOYBUTTONDOWN:
 					virtual_joystick, button = self.joystick_manager.resolve_button_input(event.joy, event.button)
+
+					self.resolve_joystick_button_input(virtual_joystick, button)
+
 					if self.p1_joystick and self.p1_joystick == virtual_joystick:
 						print('P1 using ' + virtual_joystick.name + ' -> ' + button)
 					elif self.p2_joystick and self.p2_joystick == virtual_joystick:
@@ -752,11 +889,8 @@ class Launcher:
 							if axes[i]:
 								print('P2 using ' + virtual_joystick.name + ' -> ' + axes[i] + ', ' + sides[i])
 
-			self.screen_surf.fill((0, 0, 0))
-			self.screen_surf.blit(self.background_image, (0, 0))
-			self.allsprites.update()
-			self.allsprites.draw(self.screen_surf)
-			pygame.display.flip()
+			self.update()
+			self.draw()
 			self.dt = self.clock.tick(Launcher.FPS)
 
 	def quit(self):

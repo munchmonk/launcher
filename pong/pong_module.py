@@ -1,10 +1,12 @@
-#!/usr/local/opt/python@3.8/bin/python3
+#!/Library/Frameworks/Python.framework/Versions/3.7/bin/python3
 
 import pygame
+import pygame.freetype
 import sys
 import os
 import random
 import math
+import time
 
 sys.path.append('../')
 
@@ -13,18 +15,33 @@ import launcher_module
 
 class Ball(pygame.sprite.Sprite):
 	BALL_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'ball.png'))
-	SPEED = 0.3
+	SPEED = 0.5
 
 	def __init__(self, center_x, center_y, pong, *groups):
 		pygame.sprite.Sprite.__init__(self, *groups)
 
 		self.image = Ball.BALL_IMAGE
 		self.rect = self.image.get_rect(center=(center_x, center_y))
-
 		self.pong = pong
 		self.min_x, self.max_x, self.min_y, self.max_y = pong.get_arena_borders()
+		self.start_x, self.start_y = center_x, center_y
+
 		self.speed = Ball.SPEED
 		self.dx, self.dy = self.get_dx_dy(self.get_random_angle())
+
+		self.frozen = True
+
+	def freeze(self):
+		self.frozen = True
+
+	def unfreeze(self):
+		self.frozen = False
+
+	def reset(self):
+		self.rect = self.image.get_rect(center=(self.start_x, self.start_y))
+		self.speed = Ball.SPEED
+		self.dx, self.dy = self.get_dx_dy(self.get_random_angle())
+		self.start_time = time.time()
 
 	def get_random_angle(self):
 		min_angle = 15
@@ -69,15 +86,12 @@ class Ball(pygame.sprite.Sprite):
 		if self.dx < 0 and self.rect.left < self.min_x:
 			self.rect.left = self.min_x
 			self.dx *= -1
-			# print('P2 score!')
-			self.pong.create_ball()
-			self.kill()
+			self.pong.update_score(Pong.P2)
+			
 		elif self.dx > 0 and self.rect.right > self.max_x:
 			self.rect.right = self.max_x
 			self.dx *= -1
-			# print('P1 score!')
-			self.pong.create_ball()
-			self.kill()
+			self.pong.update_score(Pong.P1)
 
 	def increase_speed(self):
 		self.speed += 0.03
@@ -110,11 +124,13 @@ class Ball(pygame.sprite.Sprite):
 					self.increase_speed()
 
 	def update(self, dt):
-		self.move(dt)
-		self.score()
+		if not self. frozen:
+			self.move(dt)
+			self.score()
 
 
 class Pad(pygame.sprite.Sprite):
+	# Commands
 	PAD_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'pad.png'))
 	MOVE_UP = 'MOVE_UP'
 	MOVE_UP_LOCKED = 'MOVE_UP_LOCKED'
@@ -122,12 +138,21 @@ class Pad(pygame.sprite.Sprite):
 	MOVE_DOWN_LOCKED = 'MOVE_DOWN_LOCKED'
 	STOP = 'STOP'
 
+	# Signals
+	PAUSE_TOGGLE_SIGNAL = 'PAUSE_TOGGLE_SIGNAL'
+	FULLSCREEN_TOGGLE_SIGNAL = 'FULLSCREEN_TOGGLE_SIGNAL'
+
 	CONTROLS_MAP = {launcher_module.VirtualJoystick.SWITCH_PRO_CONTROLLER:     {launcher_module.VirtualJoystick.X: MOVE_UP,
 																				launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
 																				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN_LOCKED,
 																				launcher_module.VirtualJoystick.NEUTRAL_ARROW: STOP,
+
+																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
 																				launcher_module.VirtualJoystick.BALL_UP:
 																						{launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP,
@@ -147,6 +172,12 @@ class Pad(pygame.sprite.Sprite):
 
 																				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
 																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+
+																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
 																				launcher_module.VirtualJoystick.BALL_UP: 
 																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
@@ -180,6 +211,9 @@ class Pad(pygame.sprite.Sprite):
 					launcher_module.VirtualJoystick.JOYCON_RIGHT_VERTICAL:     {launcher_module.VirtualJoystick.X: MOVE_UP,
 																				launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
+																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
 																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
@@ -190,6 +224,9 @@ class Pad(pygame.sprite.Sprite):
 																				},
 					launcher_module.VirtualJoystick.JOYCON_LEFT_VERTICAL:	   {launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
 																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
 																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
@@ -202,6 +239,9 @@ class Pad(pygame.sprite.Sprite):
 					launcher_module.VirtualJoystick.JOYCON_RIGHT_HORIZONTAL:   {launcher_module.VirtualJoystick.Y: MOVE_UP,
 																				launcher_module.VirtualJoystick.A: MOVE_DOWN,
 
+																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
 																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
@@ -212,6 +252,9 @@ class Pad(pygame.sprite.Sprite):
 																				},
 					launcher_module.VirtualJoystick.JOYCON_LEFT_HORIZONTAL:	   {launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
 																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
 																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
 																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
@@ -226,6 +269,8 @@ class Pad(pygame.sprite.Sprite):
 	SPEED = 0.5
 	DISTANCE_FROM_ARENA_BORDER = 50
 
+	
+
 	def __init__(self, side, joystick, x, y, pong, *groups):
 		pygame.sprite.Sprite.__init__(self, *groups)
 		self.image = Pad.PAD_IMAGE
@@ -233,12 +278,31 @@ class Pad(pygame.sprite.Sprite):
 		self.side = side
 		self.virtual_joystick = joystick
 		self.pong = pong
+		self.start_x, self.start_y = x, y
+		self.min_x, self.max_x, self.min_y, self.max_y = self.pong.get_arena_borders()
+
+		self.score = 0
 
 		self.command_queue = []
 		self.dy = 0
 		self.speed = Pad.SPEED
-		self.min_x, self.max_x, self.min_y, self.max_y = self.pong.get_arena_borders()
 		self.locked = False
+		self.signal = None
+		self.frozen = True
+
+	def freeze(self):
+		self.frozen = True
+
+	def unfreeze(self):
+		self.frozen = False
+
+	def reset(self):
+		self.rect = self.image.get_rect(midleft=(self.start_x, self.start_y))
+		self.command_queue = []
+		self.dy = 0
+		self.speed = Pad.SPEED
+		self.locked = False
+		self.start_time = time.time()
 
 	def process_joystick_button_input(self, button):
 		try:
@@ -322,12 +386,18 @@ class Pad(pygame.sprite.Sprite):
 		self.dy = 0
 
 	def update(self, dt):
+		self.signal = None
+
 		while self.command_queue:
 			command = self.command_queue.pop(0)
 			if command in (Pad.MOVE_UP, Pad.MOVE_DOWN, Pad.MOVE_UP_LOCKED, Pad.MOVE_DOWN_LOCKED):
-				self.process_movement_command(command, dt)
+				if not self.frozen:
+					self.process_movement_command(command, dt)
 			elif command == Pad.STOP:
-				self.stop()
+				if not self.frozen:
+					self.stop()
+			elif command in (Pad.PAUSE_TOGGLE_SIGNAL, Pad.FULLSCREEN_TOGGLE_SIGNAL):
+				self.signal = command
 
 		self.move(dt)
 			
@@ -336,6 +406,16 @@ class Pong:
 	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'pong_background.png'))
 	P1 = 'P1'
 	P2 = 'P2'
+
+	PRE_START_TIME = 1.5
+
+	PRE_START_STATE = 'PRE_START_STATE'
+	PLAYING_STATE = 'PLAYING_STATE'
+	PAUSED_STATE = 'PAUSED_STATE'
+
+	FONT_COLOR = (48, 80, 65)
+	FONT_SIZE = 100
+	FONT_NAME = 'fff_font.ttf'
 
 	def __init__(self, launcher):
 		self.launcher = launcher
@@ -349,13 +429,74 @@ class Pong:
 		self.allpads = pygame.sprite.Group()
 		self.allballs = pygame.sprite.Group()
 
-		self.p1_pad, self.p2_pad = self.create_pads()
+		self.p1_pad, self.p2_pad = None, None
+		self.create_pads()
 		self.ball = None 
 		self.create_ball()
+
+		self.state = Pong.PRE_START_STATE
+		self.pre_start_state_time = time.time()
+
+		self.my_font = pygame.freetype.Font(Pong.FONT_NAME, Pong.FONT_SIZE)
 
 		self.clock = self.launcher.clock
 		self.dt = self.launcher.dt
 		self.fps = launcher_module.Launcher.FPS
+
+
+	def set_state(self, state):
+		self.state = state
+
+		if state == Pong.PRE_START_STATE:
+			self.pre_start_state_time = time.time()
+			for pad in self.allpads:
+				pad.freeze()
+			self.ball.freeze()
+
+		elif state == Pong.PLAYING_STATE:
+			for pad in self.allpads:
+				pad.unfreeze()
+			self.ball.unfreeze()
+
+		elif state == Pong.PAUSED_STATE:
+			for pad in self.allpads:
+				pad.stop()
+				pad.freeze()
+			self.ball.freeze()
+
+	def draw_pause(self):
+		pause_string = 'PAUSED'
+
+		pause_surf, pause_rect = self.my_font.render(pause_string, Pong.FONT_COLOR)
+		pause_rect.centerx, pause_rect.centery = self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2
+
+		self.screen_surf.blit(pause_surf, pause_rect)
+
+
+	def draw_score(self):
+		p1_score_surf, p1_score_rect = self.my_font.render(str(self.p1_pad.score), Pong.FONT_COLOR)
+		p2_score_surf, p2_score_rect = self.my_font.render(str(self.p2_pad.score), Pong.FONT_COLOR)
+
+		p1_score_rect.right = self.screen_surf.get_width() // 2 - 100
+		p2_score_rect.left = self.screen_surf.get_width() // 2 + 100
+
+		self.screen_surf.blit(p1_score_surf, p1_score_rect)
+		self.screen_surf.blit(p2_score_surf, p2_score_rect)
+
+
+	def update_score(self, side):
+		for pad in self.allpads:
+			if pad.side == side:
+				pad.score += 1
+
+		self.reset_pads_and_ball()
+		self.set_state(Pong.PRE_START_STATE)
+
+
+	def reset_pads_and_ball(self):
+		for sprite in (self.ball, self.p1_pad, self.p2_pad):
+			sprite.reset()
+
 
 	def create_pads(self):
 		left_1 = self.get_arena_borders()[0] + Pad.DISTANCE_FROM_ARENA_BORDER
@@ -365,7 +506,8 @@ class Pong:
 		pad_1 = Pad(Pong.P1, self.p1_joystick, left_1, center_y, self, self.allpads, self.allsprites)
 		pad_2 = Pad(Pong.P2, self.p2_joystick, left_2, center_y, self, self.allpads, self.allsprites)
 
-		return pad_1, pad_2
+		self.p1_pad, self.p2_pad = pad_1, pad_2
+		# return pad_1, pad_2
 
 	def create_ball(self):
 		center_x = self.get_arena_borders()[1] // 2
@@ -382,9 +524,6 @@ class Pong:
 
 		return min_x, max_x, min_y, max_y		
 
-	def change_joysticks(self):
-		self.p1_joystick, self.p2_joystick = self.launcher.joystick_manager.select_joystick_configuration(self.screen_surf)
-
 	def toggle_fullscreen(self):
 		self.launcher.screen_manager.toggle_fullscreen()
 
@@ -395,13 +534,23 @@ class Pong:
 	def process_keyboard_input(self, key):
 		if key == pygame.K_ESCAPE:
 			self.quit()
-		elif key == pygame.K_u:
-			self.change_joysticks()
+
 		elif key == pygame.K_w:
 			self.toggle_fullscreen()
+		
+		if self.state == Pong.PLAYING_STATE:
+			if key == pygame.K_SPACE:
+				self.set_state(Pong.PAUSED_STATE)
+
+		elif self.state == Pong.PAUSED_STATE:
+			if key == pygame.K_SPACE:
+				self.set_state(Pong.PLAYING_STATE)
+
+		
 
 	def process_joystick_button_input(self, event):
 		virtual_joystick, button = self.launcher.joystick_manager.resolve_button_input(event.joy, event.button)
+
 		if self.p1_joystick and self.p1_joystick == virtual_joystick:
 			self.p1_pad.process_joystick_button_input(button)
 		elif self.p2_joystick and self.p2_joystick == virtual_joystick:
@@ -409,6 +558,7 @@ class Pong:
 
 	def process_joystick_hat_input(self, event):
 		virtual_joystick, hat, ball_side = self.launcher.joystick_manager.resolve_hat_input(event.joy, event.value)
+
 		if self.p1_joystick and self.p1_joystick == virtual_joystick:
 			self.p1_pad.process_joystick_hat_input(hat, ball_side)
 		elif self.p2_joystick and self.p2_joystick == virtual_joystick:
@@ -423,14 +573,39 @@ class Pong:
 			elif self.p2_joystick and self.p2_joystick == virtual_joystick:
 				self.p2_pad.process_joystick_axes_input(axes, sides)
 
+	def update_state(self):
+		if self.state == Pong.PRE_START_STATE:
+			if time.time() - self.pre_start_state_time > Pong.PRE_START_TIME:
+				self.set_state(Pong.PLAYING_STATE)
+
+	def check_signals(self):
+		for pad in self.allpads:
+			if pad.signal == Pad.PAUSE_TOGGLE_SIGNAL:
+				if self.state == Pong.PLAYING_STATE:
+					self.set_state(Pong.PAUSED_STATE)
+				elif self.state == Pong.PAUSED_STATE:
+					self.set_state(Pong.PLAYING_STATE)
+			if pad.signal == Pad.FULLSCREEN_TOGGLE_SIGNAL:
+				self.toggle_fullscreen()
+
+
 	def update(self):
+		self.update_state()
 		self.allpads.update(self.dt)
 		self.allballs.update(self.dt)
+		self.check_signals()
 
 	def draw(self):
 		self.screen_surf.fill((0, 0, 0))
 		self.screen_surf.blit(self.background_image, (0, 0))
 		self.allsprites.draw(self.screen_surf)
+
+		if self.state == Pong.PRE_START_STATE:
+			self.draw_score()
+
+		elif self.state == Pong.PAUSED_STATE:
+			self.draw_pause()
+
 		pygame.display.flip()
 
 
@@ -441,10 +616,9 @@ class Pong:
 					self.quit()
 
 				elif event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_m:
+					if event.key == pygame.K_p:
 						return
-					else:
-						self.process_keyboard_input(event.key)
+					self.process_keyboard_input(event.key)
 
 				elif event.type == pygame.JOYBUTTONDOWN:
 					self.process_joystick_button_input(event)
@@ -457,6 +631,7 @@ class Pong:
 			self.update()
 			self.draw()
 			self.dt = self.clock.tick(self.fps)
+
 
 
 if __name__ == '__main__':
