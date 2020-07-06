@@ -11,7 +11,7 @@ import time
 sys.path.append('../')
 
 import launcher_module
-
+	
 
 class Ball(pygame.sprite.Sprite):
 	BALL_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'ball.png'))
@@ -41,7 +41,6 @@ class Ball(pygame.sprite.Sprite):
 		self.rect = self.image.get_rect(center=(self.start_x, self.start_y))
 		self.speed = Ball.SPEED
 		self.dx, self.dy = self.get_dx_dy(self.get_random_angle())
-		self.start_time = time.time()
 
 	def get_random_angle(self):
 		min_angle = 15
@@ -129,6 +128,248 @@ class Ball(pygame.sprite.Sprite):
 			self.score()
 
 
+
+class Pong:
+	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'pong_background.png'))
+	P1 = 'P1'
+	P2 = 'P2'
+
+	PRE_START_TIME = 1.5
+
+	SPLASH_SCREEN_STATE = 'SPLASH_SCREEN_STATE'
+	PRE_START_STATE = 'PRE_START_STATE'
+	PLAYING_STATE = 'PLAYING_STATE'
+	PAUSED_STATE = 'PAUSED_STATE'
+
+	FONT_COLOR = (48, 80, 65)
+	BIG_FONT_SIZE = 100
+	SMALL_FONT_SIZE = 50
+	FONT_NAME = 'fff_font.ttf'
+
+	def __init__(self, launcher):
+		self.launcher = launcher
+
+		self.background_image = Pong.BACKGROUND_IMAGE
+		self.screen_surf = self.launcher.screen_surf
+
+		self.p1_joystick, self.p2_joystick = self.launcher.p1_joystick, self.launcher.p2_joystick
+
+		self.allsprites = pygame.sprite.Group()
+		self.allpads = pygame.sprite.Group()
+		self.allballs = pygame.sprite.Group()
+		self.alltextboxes = pygame.sprite.Group()
+
+		self.p1_pad, self.p2_pad = None, None
+		self.create_pads()
+		self.ball = None 
+		self.create_ball()
+
+		self.big_font = pygame.freetype.Font(Pong.FONT_NAME, Pong.BIG_FONT_SIZE)
+		self.small_font = pygame.freetype.Font(Pong.FONT_NAME, Pong.SMALL_FONT_SIZE)
+
+		self.state = None
+		self.pre_start_state_time = None
+		self.set_state(Pong.SPLASH_SCREEN_STATE)
+
+		self.clock = self.launcher.clock
+		self.dt = self.launcher.dt
+		self.fps = launcher_module.Launcher.FPS
+
+		self.quit_to_main_menu = False
+
+	def set_state(self, state):
+		self.state = state
+
+		if state == Pong.PRE_START_STATE:
+			self.pre_start_state_time = time.time()
+			self.ball.freeze()
+			self.create_score_textbox()
+
+		elif state == Pong.PLAYING_STATE:
+			self.ball.unfreeze()
+
+		elif state == Pong.PAUSED_STATE:
+			for pad in self.allpads:
+				pad.stop()
+			self.ball.freeze()
+
+			self.create_pause_textbox()
+
+		elif state == Pong.SPLASH_SCREEN_STATE:
+			self.create_splash_screen()
+
+	def create_splash_screen(self):
+		dummy_surf, dummy_rect = self.big_font.render('dummy render')
+
+		launcher_module.TextBox('PONG!', self.big_font, Pong.FONT_COLOR, self, (Pong.SPLASH_SCREEN_STATE, ), 
+				self.alltextboxes, self.allsprites, centerx=self.screen_surf.get_width() // 2, centery=self.screen_surf.get_height() // 2 - 50)
+
+		launcher_module.TextBox('Press any button to play', self.small_font, Pong.FONT_COLOR, self, (Pong.SPLASH_SCREEN_STATE, ), 
+				self.alltextboxes, self.allsprites, centerx=self.screen_surf.get_width() // 2, centery=self.screen_surf.get_height() // 2 + dummy_rect.height + 30)
+
+	def create_pause_textbox(self):
+		launcher_module.TextBox('PAUSED', self.big_font, Pong.FONT_COLOR, self, (Pong.PAUSED_STATE, ), 
+				self.alltextboxes, self.allsprites, centerx=self.screen_surf.get_width() // 2, centery=self.screen_surf.get_height() // 2)
+
+	def create_score_textbox(self):		
+		launcher_module.TextBox(str(self.p1_pad.score), self.big_font, Pong.FONT_COLOR, self, (Pong.PRE_START_STATE, ), 
+				self.alltextboxes, self.allsprites, right=self.screen_surf.get_width() // 2 - 100)
+
+		launcher_module.TextBox(str(self.p2_pad.score), self.big_font, Pong.FONT_COLOR, self, (Pong.PRE_START_STATE, ), 
+				self.alltextboxes, self.allsprites, left=self.screen_surf.get_width() // 2 + 100)
+
+	def update_score(self, side):
+		for pad in self.allpads:
+			if pad.side == side:
+				pad.score += 1
+
+		self.reset_pads_and_ball()
+		self.set_state(Pong.PRE_START_STATE)
+
+	def reset_pads_and_ball(self):
+		for sprite in (self.ball, self.p1_pad, self.p2_pad):
+			sprite.reset()
+
+	def create_pads(self):
+		left_1 = self.get_arena_borders()[0] + Pad.DISTANCE_FROM_ARENA_BORDER
+		left_2 = self.get_arena_borders()[1] - Pad.DISTANCE_FROM_ARENA_BORDER - Pad.PAD_IMAGE.get_rect().width
+		center_y = self.get_arena_borders()[3] // 2
+
+		pad_1 = Pad(Pong.P1, self.p1_joystick, left_1, center_y, self, self.allpads, self.allsprites)
+		pad_2 = Pad(Pong.P2, self.p2_joystick, left_2, center_y, self, self.allpads, self.allsprites)
+
+		self.p1_pad, self.p2_pad = pad_1, pad_2
+		# return pad_1, pad_2
+
+	def create_ball(self):
+		center_x = self.get_arena_borders()[1] // 2
+		center_y = self.get_arena_borders()[3] // 2
+		self.ball = Ball(center_x, center_y, self, self.allballs, self.allsprites)
+		# return Ball(center_x, center_y, self, self.allballs, self.allsprites)
+
+	def get_arena_borders(self):
+		# Customizable in the future
+		min_x = 0
+		max_x = self.screen_surf.get_width()
+		min_y = 0
+		max_y = self.screen_surf.get_height()
+
+		return min_x, max_x, min_y, max_y		
+
+	def toggle_fullscreen(self):
+		self.launcher.screen_manager.toggle_fullscreen()
+
+	def quit(self):
+		pygame.quit()
+		sys.exit()
+
+	def process_keyboard_input(self, key):
+		if key == pygame.K_ESCAPE:
+			self.quit()
+
+		elif key == pygame.K_p:
+			self.quit_game()
+
+		elif key == pygame.K_w:
+			self.toggle_fullscreen()
+		
+		if self.state == Pong.PLAYING_STATE:
+			if key == pygame.K_SPACE:
+				self.set_state(Pong.PAUSED_STATE)
+
+		elif self.state == Pong.PAUSED_STATE:
+			if key == pygame.K_SPACE:
+				self.set_state(Pong.PLAYING_STATE)
+
+	def process_joystick_button_input(self, event):
+		virtual_joystick, button = self.launcher.joystick_manager.resolve_button_input(event.joy, event.button)
+
+		if self.state == Pong.SPLASH_SCREEN_STATE:
+			self.set_state(Pong.PRE_START_STATE)
+		else:
+			if self.p1_joystick and self.p1_joystick == virtual_joystick:
+				self.p1_pad.process_joystick_button_input(button)
+			elif self.p2_joystick and self.p2_joystick == virtual_joystick:
+				self.p2_pad.process_joystick_button_input(button)
+
+	def process_joystick_hat_input(self, event):
+		virtual_joystick, hat, ball_side = self.launcher.joystick_manager.resolve_hat_input(event.joy, event.value)
+
+		if self.p1_joystick and self.p1_joystick == virtual_joystick:
+			self.p1_pad.process_joystick_hat_input(hat, ball_side)
+		elif self.p2_joystick and self.p2_joystick == virtual_joystick:
+			self.p2_pad.process_joystick_hat_input(hat, ball_side)
+			
+	def process_joystick_axes_input(self):
+		for physical_joystick in self.launcher.joystick_manager.joysticks:
+			virtual_joystick, axes, sides = self.launcher.joystick_manager.resolve_axes(physical_joystick)
+
+			if self.p1_joystick and self.p1_joystick == virtual_joystick:
+				self.p1_pad.process_joystick_axes_input(axes, sides)
+			elif self.p2_joystick and self.p2_joystick == virtual_joystick:
+				self.p2_pad.process_joystick_axes_input(axes, sides)
+
+	def update_state(self):
+		if self.state == Pong.PRE_START_STATE:
+			if time.time() - self.pre_start_state_time > Pong.PRE_START_TIME:
+				self.set_state(Pong.PLAYING_STATE)
+
+	def check_signals(self):
+		for pad in self.allpads:
+			if pad.signal == Pad.PAUSE_TOGGLE_SIGNAL:
+				if self.state == Pong.PLAYING_STATE:
+					self.set_state(Pong.PAUSED_STATE)
+				elif self.state == Pong.PAUSED_STATE:
+					self.set_state(Pong.PLAYING_STATE)
+			elif pad.signal == Pad.FULLSCREEN_TOGGLE_SIGNAL:
+				self.toggle_fullscreen()
+			elif pad.signal == Pad.QUIT_GAME_SIGNAL:
+				self.quit_game()
+
+
+	def update(self):
+		self.update_state()
+		self.allpads.update(self.dt)
+		self.allballs.update(self.dt)
+		self.alltextboxes.update(self.dt)
+		self.check_signals()
+
+	def draw(self):
+		self.screen_surf.fill((0, 0, 0))
+		self.screen_surf.blit(self.background_image, (0, 0))
+		self.allsprites.draw(self.screen_surf)
+
+		pygame.display.flip()
+
+	def quit_game(self):
+		self.quit_to_main_menu = True
+
+	def run(self):
+		while True:
+			if self.quit_to_main_menu:
+				return
+
+			for event in pygame.event.get():
+				if event.type == pygame.QUIT:
+					self.quit()
+
+				elif event.type == pygame.KEYDOWN:
+					self.process_keyboard_input(event.key)
+
+				elif event.type == pygame.JOYBUTTONDOWN:
+					self.process_joystick_button_input(event)
+
+				elif event.type == pygame.JOYHATMOTION:
+					self.process_joystick_hat_input(event)
+
+			self.process_joystick_axes_input()
+
+			self.update()
+			self.draw()
+			self.dt = self.clock.tick(self.fps)
+
+
+
 class Pad(pygame.sprite.Sprite):
 	# Commands
 	PAD_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'pad.png'))
@@ -141,130 +382,199 @@ class Pad(pygame.sprite.Sprite):
 	# Signals
 	PAUSE_TOGGLE_SIGNAL = 'PAUSE_TOGGLE_SIGNAL'
 	FULLSCREEN_TOGGLE_SIGNAL = 'FULLSCREEN_TOGGLE_SIGNAL'
+	QUIT_GAME_SIGNAL = 'QUIT_GAME_SIGNAL'
 
-	CONTROLS_MAP = {launcher_module.VirtualJoystick.SWITCH_PRO_CONTROLLER:     {launcher_module.VirtualJoystick.X: MOVE_UP,
-																				launcher_module.VirtualJoystick.B: MOVE_DOWN,
+	CONTROLS_MAP = {
+		launcher_module.VirtualJoystick.SWITCH_PRO_CONTROLLER: {
+			Pong.PLAYING_STATE: {
+			   	launcher_module.VirtualJoystick.X: MOVE_UP,
+				launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
-																				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.NEUTRAL_ARROW: STOP,
+				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.NEUTRAL_ARROW: STOP,
 
-																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.BALL_UP:
-																						{launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP
-																						},
-																				launcher_module.VirtualJoystick.BALL_DOWN:
-																						{launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN
-																						},
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
-																						}
-																				},
-					launcher_module.VirtualJoystick.PAIRED_JOYCONS:		  	   {launcher_module.VirtualJoystick.X: MOVE_UP,
-																				launcher_module.VirtualJoystick.B: MOVE_DOWN,
+				launcher_module.VirtualJoystick.BALL_UP: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP
+				},
+				launcher_module.VirtualJoystick.BALL_DOWN: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN
+				},
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
+				}
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
-																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+				launcher_module.VirtualJoystick.ZR: QUIT_GAME_SIGNAL,
+				launcher_module.VirtualJoystick.ZL: QUIT_GAME_SIGNAL,
+			}
+		},
 
-																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+		launcher_module.VirtualJoystick.PAIRED_JOYCONS: {
+			Pong.PLAYING_STATE: {
+			   	launcher_module.VirtualJoystick.X: MOVE_UP,
+				launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
-																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
 
-																				launcher_module.VirtualJoystick.BALL_UP: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_UP_LEFT: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_DOWN: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
-																						},
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: 
-																					   {launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
-																						launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
-																						}
-																			   },
-					launcher_module.VirtualJoystick.JOYCON_RIGHT_VERTICAL:     {launcher_module.VirtualJoystick.X: MOVE_UP,
-																				launcher_module.VirtualJoystick.B: MOVE_DOWN,
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.BALL_UP: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_UP_RIGHT: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_UP_LEFT: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_DOWN: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+				},
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: {
+					launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
+					launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
+				}
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
-																				},
-					launcher_module.VirtualJoystick.JOYCON_LEFT_VERTICAL:	   {launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
-																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+				launcher_module.VirtualJoystick.ZR: QUIT_GAME_SIGNAL,
+				launcher_module.VirtualJoystick.ZL: QUIT_GAME_SIGNAL
+			}
+		},
 
-																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+		launcher_module.VirtualJoystick.JOYCON_RIGHT_VERTICAL: {
+			Pong.PLAYING_STATE: {
+				launcher_module.VirtualJoystick.X: MOVE_UP,
+				launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
-																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
-																				},
-					launcher_module.VirtualJoystick.JOYCON_RIGHT_HORIZONTAL:   {launcher_module.VirtualJoystick.Y: MOVE_UP,
-																				launcher_module.VirtualJoystick.A: MOVE_DOWN,
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
 
-																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
-																				},
-					launcher_module.VirtualJoystick.JOYCON_LEFT_HORIZONTAL:	   {launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
-																				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+				launcher_module.VirtualJoystick.ZR: QUIT_GAME_SIGNAL
+			}
+		},
 
-																				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
-																				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+		launcher_module.VirtualJoystick.JOYCON_LEFT_VERTICAL: {
+			Pong.PLAYING_STATE: {
+				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
 
-																				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
-																				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
-																				}
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.ZL: QUIT_GAME_SIGNAL
+			}
+		},
+
+		launcher_module.VirtualJoystick.JOYCON_RIGHT_HORIZONTAL: {
+			Pong.PLAYING_STATE: {
+		   		launcher_module.VirtualJoystick.Y: MOVE_UP,
+				launcher_module.VirtualJoystick.A: MOVE_DOWN,
+
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.SR: QUIT_GAME_SIGNAL,
+				launcher_module.VirtualJoystick.SL: QUIT_GAME_SIGNAL
+			}
+		},
+
+		launcher_module.VirtualJoystick.JOYCON_LEFT_HORIZONTAL: {
+			Pong.PLAYING_STATE: {
+				launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+				launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+				launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+			},
+			Pong.PAUSED_STATE: {
+				launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+				launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+				launcher_module.VirtualJoystick.SR: QUIT_GAME_SIGNAL,
+				launcher_module.VirtualJoystick.SL: QUIT_GAME_SIGNAL
+			}
+		}
 	}
+
 
 	SPEED = 0.5
 	DISTANCE_FROM_ARENA_BORDER = 50
@@ -288,13 +598,7 @@ class Pad(pygame.sprite.Sprite):
 		self.speed = Pad.SPEED
 		self.locked = False
 		self.signal = None
-		self.frozen = True
 
-	def freeze(self):
-		self.frozen = True
-
-	def unfreeze(self):
-		self.frozen = False
 
 	def reset(self):
 		self.rect = self.image.get_rect(midleft=(self.start_x, self.start_y))
@@ -302,11 +606,10 @@ class Pad(pygame.sprite.Sprite):
 		self.dy = 0
 		self.speed = Pad.SPEED
 		self.locked = False
-		self.start_time = time.time()
 
 	def process_joystick_button_input(self, button):
 		try:
-			control = Pad.CONTROLS_MAP[self.virtual_joystick.name][button]
+			control = Pad.CONTROLS_MAP[self.virtual_joystick.name][self.pong.state][button]
 			self.command_queue.append(control)
 			# print(self.side + ' received: ' + control)
 		except:
@@ -317,7 +620,8 @@ class Pad(pygame.sprite.Sprite):
 		control = None
 		try:
 			# Paired joycons - physical hats = balls, they have a side
-			control = Pad.CONTROLS_MAP[self.virtual_joystick.name][hat][ball_side]
+			control = Pad.CONTROLS_MAP[self.virtual_joystick.name][self.pong.state][hat][ball_side]
+
 			self.command_queue.append(control)
 			# print(self.side + ' received: ' + control)
 		except:
@@ -326,7 +630,7 @@ class Pad(pygame.sprite.Sprite):
 		try:
 			if not control:
 				# Pro controller - physical hats = arrows, no side
-				control = Pad.CONTROLS_MAP[self.virtual_joystick.name][hat]
+				control = Pad.CONTROLS_MAP[self.virtual_joystick.name][self.pong.state][hat]
 				self.command_queue.append(control)
 				# print(self.side + ' received: ' + control)
 		except:
@@ -336,7 +640,8 @@ class Pad(pygame.sprite.Sprite):
 	def process_joystick_axes_input(self, axes, sides):
 		for i in range(len(sides)):
 			try:
-				control = Pad.CONTROLS_MAP[self.virtual_joystick.name][axes[i]][sides[i]]
+				control = Pad.CONTROLS_MAP[self.virtual_joystick.name][self.pong.state][axes[i]][sides[i]]
+
 				self.command_queue.append(control)
 				# print(self.side + ' received: ' + control)
 			except:
@@ -391,247 +696,13 @@ class Pad(pygame.sprite.Sprite):
 		while self.command_queue:
 			command = self.command_queue.pop(0)
 			if command in (Pad.MOVE_UP, Pad.MOVE_DOWN, Pad.MOVE_UP_LOCKED, Pad.MOVE_DOWN_LOCKED):
-				if not self.frozen:
-					self.process_movement_command(command, dt)
+				self.process_movement_command(command, dt)
 			elif command == Pad.STOP:
-				if not self.frozen:
-					self.stop()
-			elif command in (Pad.PAUSE_TOGGLE_SIGNAL, Pad.FULLSCREEN_TOGGLE_SIGNAL):
+				self.stop()
+			elif command in (Pad.FULLSCREEN_TOGGLE_SIGNAL, Pad.PAUSE_TOGGLE_SIGNAL, Pad.QUIT_GAME_SIGNAL):
 				self.signal = command
 
 		self.move(dt)
-			
-
-class Pong:
-	BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'pong_background.png'))
-	P1 = 'P1'
-	P2 = 'P2'
-
-	PRE_START_TIME = 1.5
-
-	PRE_START_STATE = 'PRE_START_STATE'
-	PLAYING_STATE = 'PLAYING_STATE'
-	PAUSED_STATE = 'PAUSED_STATE'
-
-	FONT_COLOR = (48, 80, 65)
-	FONT_SIZE = 100
-	FONT_NAME = 'fff_font.ttf'
-
-	def __init__(self, launcher):
-		self.launcher = launcher
-
-		self.background_image = Pong.BACKGROUND_IMAGE
-		self.screen_surf = self.launcher.screen_surf
-
-		self.p1_joystick, self.p2_joystick = self.launcher.p1_joystick, self.launcher.p2_joystick
-
-		self.allsprites = pygame.sprite.Group()
-		self.allpads = pygame.sprite.Group()
-		self.allballs = pygame.sprite.Group()
-
-		self.p1_pad, self.p2_pad = None, None
-		self.create_pads()
-		self.ball = None 
-		self.create_ball()
-
-		self.state = Pong.PRE_START_STATE
-		self.pre_start_state_time = time.time()
-
-		self.my_font = pygame.freetype.Font(Pong.FONT_NAME, Pong.FONT_SIZE)
-
-		self.clock = self.launcher.clock
-		self.dt = self.launcher.dt
-		self.fps = launcher_module.Launcher.FPS
-
-
-	def set_state(self, state):
-		self.state = state
-
-		if state == Pong.PRE_START_STATE:
-			self.pre_start_state_time = time.time()
-			for pad in self.allpads:
-				pad.freeze()
-			self.ball.freeze()
-
-		elif state == Pong.PLAYING_STATE:
-			for pad in self.allpads:
-				pad.unfreeze()
-			self.ball.unfreeze()
-
-		elif state == Pong.PAUSED_STATE:
-			for pad in self.allpads:
-				pad.stop()
-				pad.freeze()
-			self.ball.freeze()
-
-	def draw_pause(self):
-		pause_string = 'PAUSED'
-
-		pause_surf, pause_rect = self.my_font.render(pause_string, Pong.FONT_COLOR)
-		pause_rect.centerx, pause_rect.centery = self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2
-
-		self.screen_surf.blit(pause_surf, pause_rect)
-
-
-	def draw_score(self):
-		p1_score_surf, p1_score_rect = self.my_font.render(str(self.p1_pad.score), Pong.FONT_COLOR)
-		p2_score_surf, p2_score_rect = self.my_font.render(str(self.p2_pad.score), Pong.FONT_COLOR)
-
-		p1_score_rect.right = self.screen_surf.get_width() // 2 - 100
-		p2_score_rect.left = self.screen_surf.get_width() // 2 + 100
-
-		self.screen_surf.blit(p1_score_surf, p1_score_rect)
-		self.screen_surf.blit(p2_score_surf, p2_score_rect)
-
-
-	def update_score(self, side):
-		for pad in self.allpads:
-			if pad.side == side:
-				pad.score += 1
-
-		self.reset_pads_and_ball()
-		self.set_state(Pong.PRE_START_STATE)
-
-
-	def reset_pads_and_ball(self):
-		for sprite in (self.ball, self.p1_pad, self.p2_pad):
-			sprite.reset()
-
-
-	def create_pads(self):
-		left_1 = self.get_arena_borders()[0] + Pad.DISTANCE_FROM_ARENA_BORDER
-		left_2 = self.get_arena_borders()[1] - Pad.DISTANCE_FROM_ARENA_BORDER - Pad.PAD_IMAGE.get_rect().width
-		center_y = self.get_arena_borders()[3] // 2
-
-		pad_1 = Pad(Pong.P1, self.p1_joystick, left_1, center_y, self, self.allpads, self.allsprites)
-		pad_2 = Pad(Pong.P2, self.p2_joystick, left_2, center_y, self, self.allpads, self.allsprites)
-
-		self.p1_pad, self.p2_pad = pad_1, pad_2
-		# return pad_1, pad_2
-
-	def create_ball(self):
-		center_x = self.get_arena_borders()[1] // 2
-		center_y = self.get_arena_borders()[3] // 2
-		self.ball = Ball(center_x, center_y, self, self.allballs, self.allsprites)
-		# return Ball(center_x, center_y, self, self.allballs, self.allsprites)
-
-	def get_arena_borders(self):
-		# Customizable in the future
-		min_x = 0
-		max_x = self.screen_surf.get_width()
-		min_y = 0
-		max_y = self.screen_surf.get_height()
-
-		return min_x, max_x, min_y, max_y		
-
-	def toggle_fullscreen(self):
-		self.launcher.screen_manager.toggle_fullscreen()
-
-	def quit(self):
-		pygame.quit()
-		sys.exit()
-
-	def process_keyboard_input(self, key):
-		if key == pygame.K_ESCAPE:
-			self.quit()
-
-		elif key == pygame.K_w:
-			self.toggle_fullscreen()
-		
-		if self.state == Pong.PLAYING_STATE:
-			if key == pygame.K_SPACE:
-				self.set_state(Pong.PAUSED_STATE)
-
-		elif self.state == Pong.PAUSED_STATE:
-			if key == pygame.K_SPACE:
-				self.set_state(Pong.PLAYING_STATE)
-
-		
-
-	def process_joystick_button_input(self, event):
-		virtual_joystick, button = self.launcher.joystick_manager.resolve_button_input(event.joy, event.button)
-
-		if self.p1_joystick and self.p1_joystick == virtual_joystick:
-			self.p1_pad.process_joystick_button_input(button)
-		elif self.p2_joystick and self.p2_joystick == virtual_joystick:
-			self.p2_pad.process_joystick_button_input(button)
-
-	def process_joystick_hat_input(self, event):
-		virtual_joystick, hat, ball_side = self.launcher.joystick_manager.resolve_hat_input(event.joy, event.value)
-
-		if self.p1_joystick and self.p1_joystick == virtual_joystick:
-			self.p1_pad.process_joystick_hat_input(hat, ball_side)
-		elif self.p2_joystick and self.p2_joystick == virtual_joystick:
-			self.p2_pad.process_joystick_hat_input(hat, ball_side)
-			
-	def process_joystick_axes_input(self):
-		for physical_joystick in self.launcher.joystick_manager.joysticks:
-			virtual_joystick, axes, sides = self.launcher.joystick_manager.resolve_axes(physical_joystick)
-
-			if self.p1_joystick and self.p1_joystick == virtual_joystick:
-				self.p1_pad.process_joystick_axes_input(axes, sides)
-			elif self.p2_joystick and self.p2_joystick == virtual_joystick:
-				self.p2_pad.process_joystick_axes_input(axes, sides)
-
-	def update_state(self):
-		if self.state == Pong.PRE_START_STATE:
-			if time.time() - self.pre_start_state_time > Pong.PRE_START_TIME:
-				self.set_state(Pong.PLAYING_STATE)
-
-	def check_signals(self):
-		for pad in self.allpads:
-			if pad.signal == Pad.PAUSE_TOGGLE_SIGNAL:
-				if self.state == Pong.PLAYING_STATE:
-					self.set_state(Pong.PAUSED_STATE)
-				elif self.state == Pong.PAUSED_STATE:
-					self.set_state(Pong.PLAYING_STATE)
-			if pad.signal == Pad.FULLSCREEN_TOGGLE_SIGNAL:
-				self.toggle_fullscreen()
-
-
-	def update(self):
-		self.update_state()
-		self.allpads.update(self.dt)
-		self.allballs.update(self.dt)
-		self.check_signals()
-
-	def draw(self):
-		self.screen_surf.fill((0, 0, 0))
-		self.screen_surf.blit(self.background_image, (0, 0))
-		self.allsprites.draw(self.screen_surf)
-
-		if self.state == Pong.PRE_START_STATE:
-			self.draw_score()
-
-		elif self.state == Pong.PAUSED_STATE:
-			self.draw_pause()
-
-		pygame.display.flip()
-
-
-	def run(self):
-		while True:
-			for event in pygame.event.get():
-				if event.type == pygame.QUIT:
-					self.quit()
-
-				elif event.type == pygame.KEYDOWN:
-					if event.key == pygame.K_p:
-						return
-					self.process_keyboard_input(event.key)
-
-				elif event.type == pygame.JOYBUTTONDOWN:
-					self.process_joystick_button_input(event)
-
-				elif event.type == pygame.JOYHATMOTION:
-					self.process_joystick_hat_input(event)
-
-			self.process_joystick_axes_input()
-
-			self.update()
-			self.draw()
-			self.dt = self.clock.tick(self.fps)
-
 
 
 if __name__ == '__main__':

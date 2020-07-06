@@ -1,30 +1,199 @@
 #!/Library/Frameworks/Python.framework/Versions/3.7/bin/python3
 
-import pygame
-import pygame.freetype
-import sys
-pygame.init()
 
-sys.path.append('../')
 
-screen = pygame.display.set_mode((800, 600))
-# my_font = pygame.freetype.Font(None, 30)
-my_font = pygame.freetype.Font('fff_font.ttf', 30)
-fps = 80
-clock = pygame.time.Clock()
 
-while True:
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			pygame.quit()
-			sys.exit()
+CONTROLS_MAP = {
+				launcher_module.VirtualJoystick.SWITCH_PRO_CONTROLLER: {
+					Pong.PLAYING_STATE: {
+					   	launcher_module.VirtualJoystick.X: MOVE_UP,
+						launcher_module.VirtualJoystick.B: MOVE_DOWN,
 
-	my_font.render_to(screen, (100, 100), 'hello world', (255, 0, 0))
-	pygame.display.flip()
-	dt = clock.tick(fps)
-	# print(dt)
-	actual_fps = 1000 / dt
-	print(actual_fps)
+						launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.NEUTRAL_ARROW: STOP,
+
+						launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP
+						},
+						launcher_module.VirtualJoystick.BALL_DOWN: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN
+						},
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
+						}
+					}
+				},
+
+				launcher_module.VirtualJoystick.PAIRED_JOYCONS: {
+					Pong.PLAYING_STATE: {
+					   	launcher_module.VirtualJoystick.X: MOVE_UP,
+						launcher_module.VirtualJoystick.B: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+						launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_UP_RIGHT: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_UP_LEFT: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_UP_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_UP_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_DOWN: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_DOWN_LEFT: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: MOVE_DOWN_LOCKED,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: MOVE_DOWN_LOCKED
+						},
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: {
+							launcher_module.VirtualJoystick.LEFT_SIDE_BALL: STOP,
+							launcher_module.VirtualJoystick.RIGHT_SIDE_BALL: STOP
+						}
+					}
+				},
+
+
+				launcher_module.VirtualJoystick.JOYCON_RIGHT_VERTICAL: {
+					Pong.PLAYING_STATE: {
+						launcher_module.VirtualJoystick.X: MOVE_UP,
+						launcher_module.VirtualJoystick.B: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+					}
+				},
+
+				launcher_module.VirtualJoystick.JOYCON_LEFT_VERTICAL: {
+					Pong.PLAYING_STATE: {
+						launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+						launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+					}
+				},
+
+				launcher_module.VirtualJoystick.JOYCON_RIGHT_HORIZONTAL: {
+					Pong.PLAYING_STATE: {
+				   		launcher_module.VirtualJoystick.Y: MOVE_UP,
+						launcher_module.VirtualJoystick.A: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.PLUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.HOME: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+					}
+				},
+
+				launcher_module.VirtualJoystick.JOYCON_LEFT_HORIZONTAL: {
+					Pong.PLAYING_STATE: {
+						launcher_module.VirtualJoystick.UP_ARROW: MOVE_UP,
+						launcher_module.VirtualJoystick.DOWN_ARROW: MOVE_DOWN,
+
+						launcher_module.VirtualJoystick.MINUS: PAUSE_TOGGLE_SIGNAL,
+						launcher_module.VirtualJoystick.SNAPSHOT: FULLSCREEN_TOGGLE_SIGNAL,
+
+						launcher_module.VirtualJoystick.BALL_UP: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_RIGHT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_UP_LEFT: MOVE_UP_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_RIGHT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_DOWN_LEFT: MOVE_DOWN_LOCKED,
+						launcher_module.VirtualJoystick.BALL_NEUTRAL: STOP
+					}
+				}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import pygame
+# import pygame.freetype
+# import sys
+# pygame.init()
+
+# sys.path.append('../')
+
+# screen = pygame.display.set_mode((800, 600))
+# # my_font = pygame.freetype.Font(None, 30)
+# my_font = pygame.freetype.Font('fff_font.ttf', 30)
+# fps = 80
+# clock = pygame.time.Clock()
+
+# while True:
+# 	for event in pygame.event.get():
+# 		if event.type == pygame.QUIT:
+# 			pygame.quit()
+# 			sys.exit()
+
+# 	my_font.render_to(screen, (100, 100), 'hello world', (255, 0, 0))
+# 	pygame.display.flip()
+# 	dt = clock.tick(fps)
+# 	# print(dt)
+# 	actual_fps = 1000 / dt
+# 	print(actual_fps)
 
 
 

@@ -9,6 +9,49 @@ sys.path.append('./pong')
 import pong_module
 
 
+class TextBox(pygame.sprite.Sprite):
+	def __init__(self, text, font, color, launcher, survival_states, *groups, right=None, left=None, centerx=None, centery=None, top=None, bottom=None):
+		pygame.sprite.Sprite.__init__(self, *groups)
+
+		self.font = font
+		self.color = color
+		self.text = text
+		self.image, self.rect = font.render(text, color)
+		self.launcher = launcher
+		self.survival_states = survival_states
+
+		self.right = right
+		self.left = left
+		self.centerx = centerx
+		self.centery = centery
+		self.top = top
+		self.bottom = bottom
+	
+		self.adjust_rect()
+
+	def adjust_rect(self):
+		if self.right:
+			self.rect.right = self.right
+		if self.left:
+			self.rect.left = self.left
+		if self.centerx:
+			self.rect.centerx = self.centerx
+		if self.centery:
+			self.rect.centery = self.centery
+		if self.top:
+			self.rect.top = self.top
+		if self.bottom:
+			self.rect.bottom = self.bottom
+
+	def change_text(self, new_text):
+		self.image, self.rect = self.font.render(new_text, self.color)
+		self.adjust_rect()
+
+	def update(self, dt):
+		if self.launcher.state not in self.survival_states:
+			self.kill()
+
+
 class Square(pygame.sprite.Sprite):
 	def __init__(self, x, y, *groups):
 		pygame.sprite.Sprite.__init__(self, *groups)
@@ -22,6 +65,7 @@ class Square(pygame.sprite.Sprite):
 	def draw(self):
 		pass
 
+
 class SelectionArrows(pygame.sprite.Sprite):
 	NORMAL_IMAGE = pygame.image.load('images/selection_arrows.png')
 	FADED_IMAGE = pygame.image.load('images/selection_arrows_faded.png')
@@ -32,21 +76,14 @@ class SelectionArrows(pygame.sprite.Sprite):
 
 		self.image = SelectionArrows.NORMAL_IMAGE
 		self.rect = self.image.get_rect(center=(x, y))
-		self.center_x, self.center_y = x, y
 
 		self.controller = controller
 
-	def update(self):
+	def update(self, dt):
 		if not self.controller.alive():
 			self.kill()
 		elif len(self.controller.options) < 2:
 			self.image = SelectionArrows.FADED_IMAGE
-
-	def recenter(self):
-		self.rect.centerx, self.rect.centery = self.center_x, self.center_y
-
-
-	
 
 
 class VirtualJoystick:
@@ -304,12 +341,8 @@ class Controller(pygame.sprite.Sprite):
 		self.rect = self.image.get_rect(center=(x, y))
 		self.center_x, self.center_y = x, y
 
-
-
-
 	def reset_choice(self):
 		self.choice = None
-
 
 	def update_options(self):
 		options_to_remove = []
@@ -335,9 +368,6 @@ class Controller(pygame.sprite.Sprite):
 		for option in options_to_remove:
 			self.options.remove(option)
 
-		
-
-
 	def process_keyboard_input(self, key):
 		if key == pygame.K_RIGHT:
 			self.next_controller()
@@ -346,8 +376,6 @@ class Controller(pygame.sprite.Sprite):
 		elif key == pygame.K_SPACE:
 			self.make_selection()
 			
-
-
 	def make_selection(self):
 		self.choice = self.get_controller_type()
 		self.update_options()
@@ -355,8 +383,6 @@ class Controller(pygame.sprite.Sprite):
 			self.initialise_images()
 			self.controller_index = 0
 			self.image = self.images[self.controller_index]
-
-
 
 	def initialise_images(self):
 		self.images = [] 
@@ -399,14 +425,7 @@ class Controller(pygame.sprite.Sprite):
 	def get_controller_type(self):
 		return self.options[self.controller_index]
 
-	def draw(self):
-		pass
-		# self.screen_surf.fill((0, 0, 0))
-		# self.screen_surf.blit(JoystickManager.JOYSTICK_SELECTION_BACKGROUND_IMAGE, (0, 0))
-		# self.screen_surf.blit(self.image, self.rect)
-		# pygame.display.flip()
-
-
+	
 class JoystickManager:
 	# Physical names set by pygame
 	SWITCH_PRO_NAME = 'Pro Controller'
@@ -422,14 +441,6 @@ class JoystickManager:
 						VirtualJoystick.SWITCH_PRO_CONTROLLER,
 						VirtualJoystick.PAIRED_JOYCONS
 	]
-
-	# PRIORITY_LIST =    [VirtualJoystick.SWITCH_PRO_CONTROLLER,
-	# 					VirtualJoystick.PAIRED_JOYCONS,
-	# 					VirtualJoystick.JOYCON_RIGHT_HORIZONTAL,
-	# 					VirtualJoystick.JOYCON_LEFT_HORIZONTAL,
-	# 					VirtualJoystick.JOYCON_RIGHT_VERTICAL,
-	# 					VirtualJoystick.JOYCON_LEFT_VERTICAL
-	# ]
 
 	JOYSTICK_SELECTION_BACKGROUND_IMAGE = pygame.image.load(os.path.join(os.path.dirname(__file__), 'images/joystick_selection_background.png'))
 
@@ -638,13 +649,19 @@ class ScreenManager:
 		if self.is_fullscreen():
 			pygame.display.set_mode(self._resolutions[self._res_index])
 		else:
-			# pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 			pygame.display.set_mode((self._resolutions[0]), pygame.FULLSCREEN)
 
 		self._fullscreen = not self._fullscreen
 		self._update_aspect_ratio()
-		if sprites:
-			self.recenter(sprites)
+
+		# self.recenter(sprites)
+
+	def recenter(self, sprites):
+		for sprite in sprites:
+			try:
+				sprite.recenter()
+			except:
+				pass
 
 	def enlarge_screen(self, sprites=None):
 		if self.is_fullscreen():
@@ -653,8 +670,8 @@ class ScreenManager:
 			return
 		self._res_index -= 1
 		self._set_screen_surf()
-		if sprites:
-			self.recenter(sprites)
+
+		self.recenter(sprites)
 
 	def shrink_screen(self, sprites=None):
 		if self.is_fullscreen():
@@ -663,12 +680,8 @@ class ScreenManager:
 			return
 		self._res_index += 1
 		self._set_screen_surf()
-		if sprites:
-			self.recenter(sprites)
 
-	def recenter(self, sprites):
-		for sprite in sprites:
-			sprite.recenter()
+		self.recenter(sprites)
 
 	def reload(self):
 		self.__init__()
@@ -700,6 +713,7 @@ class Launcher:
 
 		self.allsprites = pygame.sprite.Group()
 		self.allcontrollers = pygame.sprite.Group()
+		self.alltextboxes = pygame.sprite.Group()
 		self.controller = None
 
 		self.big_font = pygame.freetype.Font(Launcher.FONT_NAME, Launcher.BIG_FONT_SIZE)
@@ -709,12 +723,17 @@ class Launcher:
 		self.clock = pygame.time.Clock()
 		self.dt = 0
 
-		self.state = Launcher.GAME_SELECTION_STATE
+		self.state = None
+		self.set_state(Launcher.GAME_SELECTION_STATE)
 
 		pygame.mouse.set_visible(False)
 
+	def set_state(self, state):
+		self.state = state
 
-
+		if state == Launcher.GAME_SELECTION_STATE:
+			self.create_instructions()
+		
 	def configure_joysticks(self):
 		self.p1_joystick, self.p2_joystick = None, None
 
@@ -723,10 +742,12 @@ class Launcher:
 			print('No joysticks found!')
 			return
 
-		self.state = Launcher.JOYSTICK_SELECTION_STATE
 		self.controller = Controller(self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2, options, self.allsprites, self.allcontrollers)
 		SelectionArrows(self.screen_surf.get_width() // 2, self.screen_surf.get_height() // 2, self.controller, self.allsprites)
-
+		TextBox('PLAYER 1', self.big_font, Launcher.FONT_COLOR, self, (Launcher.JOYSTICK_SELECTION_STATE, ), 
+			self.alltextboxes, self.allsprites, centerx=self.controller.rect.centerx, bottom=self.controller.rect.top - 50)
+		
+		self.set_state(Launcher.JOYSTICK_SELECTION_STATE)
 
 	def resolve_keyboard_input(self, key):
 		if key == pygame.K_ESCAPE:
@@ -745,16 +766,15 @@ class Launcher:
 
 	def resolve_joystick_button_input(self, virtual_joystick, button):
 		if (self.p1_joystick and self.p1_joystick == virtual_joystick) or (self.p2_joystick and self.p2_joystick == virtual_joystick):
-			if button in (VirtualJoystick.ZR, VirtualJoystick.ZL):
+			if button in (VirtualJoystick.ZR, VirtualJoystick.ZL, VirtualJoystick.SR, VirtualJoystick.SL):
 				pong_module.Pong(self).run()
 			elif button in (VirtualJoystick.X, VirtualJoystick.UP_ARROW):
 				self.screen_manager.toggle_fullscreen(self.allsprites)
 			elif button in (VirtualJoystick.HOME, VirtualJoystick.SNAPSHOT):
 				self.configure_joysticks()
 
-
 	def update(self):
-		self.allsprites.update()
+		self.allsprites.update(self.dt)
 
 		if self.state == Launcher.JOYSTICK_SELECTION_STATE:
 			if self.controller.choice:
@@ -762,10 +782,14 @@ class Launcher:
 					self.p1_joystick = self.controller.choice
 					self.controller.reset_choice()
 
+					for textbox in self.alltextboxes:
+						if textbox.text == 'PLAYER 1':
+							textbox.change_text('PLAYER 2')
+
 					if not self.controller.options:
 						self.joystick_manager.activate_joysticks(self.p1_joystick, self.p2_joystick)
 						self.controller.kill()
-						self.state = Launcher.GAME_SELECTION_STATE
+						self.set_state(Launcher.GAME_SELECTION_STATE)
 						print('No joysticks left for P2!')
 					
 				else:
@@ -773,58 +797,29 @@ class Launcher:
 					self.joystick_manager.activate_joysticks(self.p1_joystick, self.p2_joystick)
 					self.controller.kill()
 					self.controller = None
-					self.state = Launcher.GAME_SELECTION_STATE
+					self.set_state(Launcher.GAME_SELECTION_STATE)
 
-				
-
-	def draw_player_selecting_joystick(self):
-		player_string = 'PLAYER 1' if not self.p1_joystick else 'PLAYER 2'
-		player_surf, player_rect = self.big_font.render(player_string, Launcher.FONT_COLOR)
-
-		player_rect.centerx = self.controller.rect.centerx
-		player_rect.bottom = self.controller.rect.top - 50
-
-		self.screen_surf.blit(player_surf, player_rect)
-
-
-	def draw_instructions(self):
-		line_1 = 'Press ZR or ZL to play Pong!'
-		line_2 = 'Press X or the up arrow to toggle fullscreen'
-		line_3 = 'Press HOME or SNAPSHOT to select a different'
-		line_4 = 'joystick configuration (this will use the keyboard)'
-
-		surf_1, rect_1 = self.small_font.render(line_1, Launcher.FONT_COLOR)
-		surf_2, rect_2 = self.small_font.render(line_2, Launcher.FONT_COLOR)
-		surf_3, rect_3 = self.small_font.render(line_3, Launcher.FONT_COLOR)
-		surf_4, rect_4 = self.small_font.render(line_4, Launcher.FONT_COLOR)
+	def create_instructions(self):
+		dummy_surf, dummy_rect = self.small_font.render('dummy render')
 
 		top = 150
 		left = 100
 
-		for rect in (rect_1, rect_2, rect_3, rect_4):
-			rect.top = top
-			rect.left = left
-			top += rect.height + 30
+		lines = ['Press ZR, ZL, SR or SL to play Pong!', 'Press X or the up arrow to toggle fullscreen', 'Press HOME or SNAPSHOT to select a different',
+				'joystick configuration (this will use the keyboard)']
 
-		self.screen_surf.blit(surf_1, rect_1)
-		self.screen_surf.blit(surf_2, rect_2)
-		self.screen_surf.blit(surf_3, rect_3)
-		self.screen_surf.blit(surf_4, rect_4)
+		for i in range(len(lines)):
+			TextBox(lines[i], self.small_font, Launcher.FONT_COLOR, self, (Launcher.GAME_SELECTION_STATE, ), 
+				self.alltextboxes, self.allsprites, top=top, left=left)
 
+			top += dummy_rect.height + 30
 
 	def draw(self):
 		self.screen_surf.fill((0, 0, 0))
 		self.screen_surf.blit(self.background_image, (0, 0))
 		self.allsprites.draw(self.screen_surf)
 
-		if self.state == Launcher.GAME_SELECTION_STATE:
-			self.draw_instructions()
-
-		elif self.state == Launcher.JOYSTICK_SELECTION_STATE:
-			self.draw_player_selecting_joystick()
-
 		pygame.display.flip()
-
 
 	def run(self):
 		while True:
@@ -840,10 +835,8 @@ class Launcher:
 					# 	self.screen_manager.reload()
 					# elif event.key == pygame.K_p:
 					# 	self.screen_manager.enlarge_screen(self.allsprites)
-					# 	# self.screen_manager.recenter(self.allsprites)
 					# elif event.key == pygame.K_o:
 					# 	self.screen_manager.shrink_screen(self.allsprites)
-					# 	# self.screen_manager.recenter(self.allsprites)
 					# elif event.key == pygame.K_l:
 					# 	self.screen_manager.show_info()
 					# elif event.key == pygame.K_j:
